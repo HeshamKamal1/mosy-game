@@ -38,7 +38,7 @@ small{opacity:.75}
 <canvas id="pv"></canvas><br><small>Tap the background in the picture to remove it. Toys should face right.</small><br>
 <label>Cut-out strength <input type="range" id="tol" min="10" max="140" value="55"></label><br>
 <label><input type="checkbox" id="car" checked> Cartoon look</label><br>
-<select id="kind"><option value="vehicle">🚗 Vehicle</option><option value="building">🏠 Building</option><option value="tree">🌳 Tree</option><option value="lake">💧 Lake</option></select>
+<select id="kind"><option value="vehicle">🚗 Vehicle</option><option value="building">🏠 Building</option><option value="tree">🌳 Tree</option><option value="lake">💧 Lake</option><option value="boat">⛵ Boat</option></select>
 <input type="text" id="nm" placeholder="Name" size="12"><br>
 <button id="save" class="on">✅ Save</button></div>
 <button id="acl">Close</button></div></div>
@@ -48,14 +48,15 @@ small{opacity:.75}
 
 <script>
 const $=s=>document.querySelector(s),cv=$('#cv'),cx=cv.getContext('2d');
-const S=20,Y=.6,HT={vehicle:56,building:110,tree:90,lake:70};
-let W=0,H=0,mode='build',cam={x:-200,y:-250},sel='b0',tool=null,veh='v0',veh2=null,t=0,t2=4,slot=0,going=false;
+const S=20,Y=.6,HT={vehicle:56,building:110,tree:90,lake:70,boat:52};
+let W=0,H=0,mode='build',cam={x:-200,y:-250},sel='b0',tool=null,veh='v0',veh2=null,boat=null,tb=0,bdir=1,t=0,t2=4,slot=0,going=false;
 let pts=[],placed=[],custom=[],hist=[],rv=[],target='road';const items={};
 function mk(id,kind,name,url){const im=new Image();im.src=url;items[id]={id,kind,name,url,im}}
 [['v0','vehicle','🚗',1],['v1','vehicle','🚚',1],['v2','vehicle','🚜',1],['v3','vehicle','🚌',1],['b0','building','🏠'],['b1','building','🏢'],['b2','building','🏫'],['b3','building','🏰'],['t0','tree','🌳'],['t1','tree','🌲'],['t2','tree','🌴']].forEach(([id,k,e,f])=>{
 const c=document.createElement('canvas');c.width=c.height=128;const g=c.getContext('2d');g.font='100px serif';g.textAlign='center';g.textBaseline='middle';
 if(f){g.translate(128,0);g.scale(-1,1)}g.fillText(e,64,70);mk(id,k,e,c.toDataURL())});
 [['l0','Lake','#4aa8e8',1],['l1','Pond','#6cc4f0',.7]].forEach(([id,n,col,s])=>{const c=document.createElement('canvas');c.width=200;c.height=110;const g=c.getContext('2d');g.fillStyle=col;g.strokeStyle='#2b78b8';g.lineWidth=6;g.beginPath();g.ellipse(100,60,90*s,44*s,0,0,7);g.fill();g.stroke();g.strokeStyle='#fffa';g.lineWidth=4;g.beginPath();g.arc(100-30*s,60-5*s,18*s,3.4,5);g.stroke();g.beginPath();g.arc(100+20*s,60+10*s,12*s,3.4,5);g.stroke();mk(id,'lake',n,c.toDataURL())});
+[['w0','⛵',0],['w1','🚤',1],['w2','🛶',0]].forEach(([id,e,f])=>{const c=document.createElement('canvas');c.width=c.height=128;const g=c.getContext('2d');g.font='100px serif';g.textAlign='center';g.textBaseline='middle';if(f){g.translate(128,0);g.scale(-1,1)}g.fillText(e,64,70);mk(id,'boat',e,c.toDataURL())});
 try{custom=JSON.parse(localStorage.getItem('tr_items')||'[]');custom.forEach(c=>mk(c.id,c.kind,c.name,c.url))}catch(e){custom=[]}
 try{const w=JSON.parse(localStorage.getItem('tr_world')||'null');if(w&&w.pts&&w.pts.length>8){rv=w.rv||[];pts=w.pts;placed=(w.placed||[]).filter(o=>items[o.id]&&o.i<pts.length)}}catch(e){}
 function saveItems(){try{localStorage.setItem('tr_items',JSON.stringify(custom))}catch(e){alert('Garage is full - delete a toy first.')}}
@@ -67,7 +68,7 @@ const sp=p=>[p.x-cam.x,p.y*Y-p.z-cam.y],pos=o=>{const[a,b]=sp(pts[o.i]);return[a
 function focusP(p){const[a,b]=sp(p);cam.x+=a-W/2;cam.y+=b-H/2}
 function addR(type){let{x,y,h}=rv[rv.length-1];for(let i=0;i<8;i++){if(type=='L')h-=Math.PI/16;if(type=='R')h+=Math.PI/16;x+=Math.cos(h)*S;y+=Math.sin(h)*S;rv.push({x,y,z:0,h})}focusP(rv[rv.length-1])}
 function inTun(tt){const n=pts.length,i=Math.floor(loop()?((tt%n)+n)%n:Math.min(tt,n-1));return pts[i].k==='t'&&pts[(i+1)%n].k==='t'}
-function rst(){t=0;t2=4}
+function rst(){t=0;t2=4;tb=0;bdir=1}
 function loop(){const n=pts.length,a=pts[0],b=pts[n-1];return n>20&&Math.hypot(a.x-b.x,a.y-b.y)<70&&Math.abs(a.z-b.z)<=25}
 function closeLoop(){const a=pts[0],b=pts[pts.length-1],d=Math.hypot(a.x-b.x,a.y-b.y);if(d<8)return;if(d>500){alert('Bring the road closer to the start first.');return}hist.push(pts.length);const k=Math.max(2,Math.round(d/S)),h=Math.atan2(a.y-b.y,a.x-b.x);for(let i=1;i<k;i++){const f=i/k;pts.push({x:b.x+(a.x-b.x)*f,y:b.y+(a.y-b.y)*f,z:b.z+(a.z-b.z)*f,h})}saveWorld()}
 function adv(tt,k){const n=pts.length,L=loop(),i=L?Math.floor(((tt%n)+n)%n):Math.min(Math.floor(tt),n-2),dz=pts[(i+1)%n].z-pts[i].z;tt+=k*.12*(1-dz/9);if(L){if(tt>=n)tt-=n}else if(tt>=n-1.01)tt=n-1.01;return tt}
@@ -80,7 +81,7 @@ function draw(){cx.setTransform(1,0,0,1,0,0);
 const g=cx.createLinearGradient(0,0,0,H);g.addColorStop(0,'#cfeeff');g.addColorStop(.3,'#a6dd7e');g.addColorStop(1,'#86c960');cx.fillStyle=g;cx.fillRect(0,0,W,H);
 const P=pts.map(sp);cx.lineCap=cx.lineJoin='round';
 cx.strokeStyle='#5a9a3a';cx.lineWidth=24;pts.forEach((p,i)=>{if(p.z>0){cx.beginPath();cx.moveTo(P[i][0],P[i][1]);cx.lineTo(P[i][0],P[i][1]+p.z);cx.stroke()}});
-placed.forEach(o=>{if(items[o.id].kind==='lake'){const[x,y]=pos(o);spr(items[o.id],x,y)}});if(rv.length>1){const R=rv.map(sp),rp=()=>{cx.beginPath();R.forEach((a,i)=>i?cx.lineTo(a[0],a[1]):cx.moveTo(a[0],a[1]))};rp();cx.strokeStyle='#2b78b8';cx.lineWidth=62;cx.stroke();rp();cx.strokeStyle='#4aa8e8';cx.lineWidth=52;cx.stroke();rp();cx.strokeStyle='#8fd3ff';cx.lineWidth=4;cx.setLineDash([14,18]);cx.stroke();cx.setLineDash([])}
+placed.forEach(o=>{if(items[o.id].kind==='lake'){const[x,y]=pos(o);spr(items[o.id],x,y)}});if(rv.length>1){const R=rv.map(sp),rp=()=>{cx.beginPath();R.forEach((a,i)=>i?cx.lineTo(a[0],a[1]):cx.moveTo(a[0],a[1]))};rp();cx.strokeStyle='#2b78b8';cx.lineWidth=62;cx.stroke();rp();cx.strokeStyle='#4aa8e8';cx.lineWidth=52;cx.stroke();}
 const path=()=>{cx.beginPath();P.forEach((a,i)=>{if(!i||(pts[i].k==='t'&&pts[i-1].k==='t'))cx.moveTo(a[0],a[1]);else cx.lineTo(a[0],a[1])});if(loop())cx.lineTo(P[0][0],P[0][1])};
 path();cx.strokeStyle='#e8d9a0';cx.lineWidth=42;cx.stroke();
 path();cx.strokeStyle='#4a4a4a';cx.lineWidth=34;cx.stroke();
@@ -95,6 +96,7 @@ const L=placed.filter(o=>items[o.id].kind!=='lake').map(o=>{const[x,y]=pos(o);re
 [[veh||'v0',t],[veh2,t2]].forEach(([vid,tt])=>{if(!vid||!items[vid]||inTun(tt))return;const c=carPos(tt);L.push([c.y+6,()=>{const it=items[vid],im=it.im;if(!im.naturalWidth)return;const h=HT.vehicle,w=Math.min(h*im.naturalWidth/im.naturalHeight,110);
 cx.save();cx.translate(c.x,c.y+6);if(c.dx<0){cx.scale(-1,1);cx.rotate(Math.atan2(c.dy,-c.dx))}else cx.rotate(Math.atan2(c.dy,c.dx));
 cx.drawImage(im,-w/2,-h+4,w,h);cx.restore()}])});
+if(boat&&items[boat]&&rv.length>1){const bt=items[boat],R=rv.map(sp),i=Math.min(Math.floor(tb),rv.length-2),f=tb-i,bx=R[i][0]+(R[i+1][0]-R[i][0])*f,by=R[i][1]+(R[i+1][1]-R[i][1])*f+Math.sin(tk*.08)*2,dx=(R[i+1][0]-R[i][0])*bdir,dy=(R[i+1][1]-R[i][1])*bdir;L.push([by,()=>{const im=bt.im;if(!im.naturalWidth)return;const h=HT.boat,w=Math.min(h*im.naturalWidth/im.naturalHeight,110);cx.save();cx.translate(bx,by+8);if(dx<0){cx.scale(-1,1);cx.rotate(Math.atan2(dy,-dx)*.5)}else cx.rotate(Math.atan2(dy,dx)*.5);cx.drawImage(im,-w/2,-h+6,w,h);cx.restore()}])}
 L.sort((a,b)=>a[0]-b[0]).forEach(a=>a[1]());
 runs('t').forEach(r=>{if(r.length<2)return;cx.lineCap='butt';RP(r,0);cx.strokeStyle='rgba(0,0,0,.12)';cx.lineWidth=34;cx.setLineDash([4,10]);cx.stroke();cx.setLineDash([]);
 [r[0],r[r.length-1]].forEach(i=>{const n=nrm(i);cx.fillStyle='#1b1b1b';cx.strokeStyle='#8d7b5c';cx.lineWidth=5;cx.beginPath();cx.ellipse(P[i][0],P[i][1],12,26,Math.atan2(-n[0],n[1]),0,7);cx.fill();cx.stroke()});cx.lineCap='round'})}
@@ -105,7 +107,7 @@ mt('#a9c2dc',hz*.9,60,.04,0);mt('#7fa6b8',hz*.6,40,.1,2);
 const c=(a,b,r)=>{cx.beginPath();cx.arc(a,b,r,0,7);cx.fill()};cx.fillStyle='#fff';
 for(let i=0;i<6;i++){const w=W+300,x=(((i*260+tk*.25-cam.x*.03)%w)+w)%w-150,y=hz*(.12+.5*((i*37)%10)/10);c(x,y,16);c(x+18,y-8,20);c(x+40,y,16);c(x+20,y+4,18)}
 cx.fillStyle='#6fb04a';cx.fillRect(0,hz,W,3)}
-function frame(){if(mode==='drive'&&going){t=adv(t,1);if(veh2)t2=adv(t2,.85);
+function frame(){if(mode==='drive'&&going){t=adv(t,1);if(veh2)t2=adv(t2,.85);if(boat&&rv.length>1){tb+=bdir*.1;if(tb>=rv.length-1.01){tb=rv.length-1.01;bdir=-1}if(tb<=0){tb=0;bdir=1}}
 if(!loop()&&t>=pts.length-1.02&&(!veh2||t2>=pts.length-1.02)){going=false;ui()}
 const c=carPos(t);cam.x+=(c.x+cam.x-W/2-cam.x)*.12;cam.y+=(c.y+cam.y-H/2-cam.y)*.12}
 draw();sky();requestAnimationFrame(frame)}
@@ -121,25 +123,25 @@ if(target==='river'&&!rv.length){rv=[{x:x+cam.x,y:(y+cam.y)/Y,z:0,h:Math.PI/2}];
 const kk=pts[bi].k,lk=items[sel].kind==='lake',md=kk==='b'&&lk?0:kk==='t'?62:lk?70:30;if(bd<md*md)return;const[a,b]=sp(pts[bi]);placed.push({id:sel,i:bi,dx:x-a,dy:y-b});saveWorld()}
 function ui(){document.querySelectorAll('[data-m]').forEach(b=>b.classList.toggle('on',b.dataset.m===mode));
 const B=(a,l,on)=>`<button data-a="${a}"${on?' class="on"':''}>${l}</button>`;
-$('#ctl').innerHTML=mode==='build'?B('tr','🛣️ Road',target==='road')+B('tv','🌊 River',target==='river')+(target==='river'?(rv.length?'':'<small>Tap the map to start the river</small>')+B('S','➡️ Straight')+B('L','↰ Left')+B('R','↱ Right')+B('undo','↩️ Undo'):B('U','⬆️ Hill up')+B('D','⬇️ Hill down')+B('S','➡️ Straight')+B('L','↰ Left')+B('R','↱ Right')+B('B','🌉 Bridge')+B('T','⛰️ Tunnel')+B('close','🔗 Close loop')+B('undo','↩️ Undo'))+B('erase','🧽 Erase',tool==='erase'):B('go',going?'⏸ Stop':'▶️ Go!')+B('re','🔄 Restart')+B('s0','1️⃣ Car 1',!slot)+B('s1','2️⃣ Car 2',slot==1)+(veh2?B('x2','✖ Remove car 2'):'')+(slot&&!veh2?'<small>Pick car 2 below</small>':'');
-const ks=mode==='build'?['building','tree','lake']:['vehicle'];
-$('#pal').innerHTML=Object.values(items).filter(i=>ks.includes(i.kind)).map(i=>`<button data-i="${i.id}"${(mode==='build'?sel===i.id&&tool!=='erase':(slot?veh2:veh)===i.id)?' class="on"':''}><img src="${i.url}"></button>`).join('')}
+$('#ctl').innerHTML=mode==='build'?B('tr','🛣️ Road',target==='road')+B('tv','🌊 River',target==='river')+(target==='river'?(rv.length?'':'<small>Tap the map to start the river</small>')+B('S','➡️ Straight')+B('L','↰ Left')+B('R','↱ Right')+B('undo','↩️ Undo'):B('U','⬆️ Hill up')+B('D','⬇️ Hill down')+B('S','➡️ Straight')+B('L','↰ Left')+B('R','↱ Right')+B('B','🌉 Bridge')+B('T','⛰️ Tunnel')+B('close','🔗 Close loop')+B('undo','↩️ Undo'))+B('erase','🧽 Erase',tool==='erase'):B('go',going?'⏸ Stop':'▶️ Go!')+B('re','🔄 Restart')+B('s0','1️⃣ Car 1',!slot)+B('s1','2️⃣ Car 2',slot==1)+(veh2?B('x2','✖ Remove car 2'):'')+(boat?B('xb','✖ Remove boat'):'')+(boat&&rv.length<2?'<small>Build a river for the boat</small>':'')+(slot&&!veh2?'<small>Pick car 2 below</small>':'');
+const ks=mode==='build'?['building','tree','lake']:['vehicle','boat'];
+$('#pal').innerHTML=Object.values(items).filter(i=>ks.includes(i.kind)).map(i=>`<button data-i="${i.id}"${(mode==='build'?sel===i.id&&tool!=='erase':(i.kind==='boat'?boat===i.id:(slot?veh2:veh)===i.id))?' class="on"':''}><img src="${i.url}"></button>`).join('')}
 document.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
 if(b.dataset.m){mode=b.dataset.m;going=false;if(mode==='drive'){rst();focus(0)}else focus(pts.length-1);ui()}
-else if(b.dataset.i){if(mode==='build'){sel=b.dataset.i;tool=null}else if(slot)veh2=b.dataset.i;else veh=b.dataset.i;ui()}
+else if(b.dataset.i){if(mode==='build'){sel=b.dataset.i;tool=null}else if(items[b.dataset.i].kind==='boat')boat=b.dataset.i;else if(slot)veh2=b.dataset.i;else veh=b.dataset.i;ui()}
 else if(b.dataset.a){const a=b.dataset.a;
 if('UDSLRBT'.includes(a)&&a.length==1){if(target==='river'){if(rv.length&&'LRS'.includes(a))addR(a)}else{add(a);focus(pts.length-1)}saveWorld();tool=null}
 else if(a==='undo'&&target==='river'){if(rv.length>8)rv.length-=8;else rv=[];saveWorld()}else if(a==='undo'){const n=hist.length?pts.length-hist.pop():8;if(pts.length-n>=9){pts.length-=n;placed=placed.filter(o=>o.i<pts.length);focus(pts.length-1);saveWorld()}}
 else if(a==='erase')tool=tool==='erase'?null:'erase';
 else if(a==='go'){if(!loop()&&t>=pts.length-1.5)rst();going=!going}
-else if(a==='re'){rst();going=false;focus(0)}else if(a==='s0')slot=0;else if(a==='s1')slot=1;else if(a==='x2'){veh2=null;slot=0}else if(a==='close')closeLoop();else if(a==='tr')target='road';else if(a==='tv')target='river';
+else if(a==='re'){rst();going=false;focus(0)}else if(a==='s0')slot=0;else if(a==='s1')slot=1;else if(a==='x2'){veh2=null;slot=0}else if(a==='xb')boat=null;else if(a==='close')closeLoop();else if(a==='tr')target='road';else if(a==='tv')target='river';
 ui()}});
 /* Garage */
 function garage(){$('#gg').innerHTML=Object.values(items).map(i=>`<button class="g" data-g="${i.id}"><img src="${i.url}">${custom.some(c=>c.id===i.id)?`<button class="x" data-x="${i.id}">✕</button>`:''}</button>`).join('')}
 $('#gar').onclick=()=>{garage();$('#gm').hidden=false};$('#gcl').onclick=()=>$('#gm').hidden=true;
 $('#gg').onclick=e=>{const x=e.target.closest('[data-x]'),g=e.target.closest('[data-g]');
-if(x){e.stopPropagation();const id=x.dataset.x;custom=custom.filter(c=>c.id!==id);delete items[id];placed=placed.filter(o=>o.id!==id);if(veh===id)veh='v0';if(veh2===id)veh2=null;if(sel===id)sel='b0';saveItems();saveWorld();garage();ui()}
-else if(g&&items[g.dataset.g].kind==='vehicle'){if(slot)veh2=g.dataset.g;else veh=g.dataset.g;mode='drive';rst();going=false;focus(0);$('#gm').hidden=true;ui()}};
+if(x){e.stopPropagation();const id=x.dataset.x;custom=custom.filter(c=>c.id!==id);delete items[id];placed=placed.filter(o=>o.id!==id);if(veh===id)veh='v0';if(veh2===id)veh2=null;if(boat===id)boat=null;if(sel===id)sel='b0';saveItems();saveWorld();garage();ui()}
+else if(g&&items[g.dataset.g].kind==='boat'){boat=g.dataset.g;mode='drive';rst();going=false;focus(0);$('#gm').hidden=true;ui()}else if(g&&items[g.dataset.g].kind==='vehicle'){if(slot)veh2=g.dataset.g;else veh=g.dataset.g;mode='drive';rst();going=false;focus(0);$('#gm').hidden=true;ui()}};
 /* Photo to cartoon */
 let base=null,bg=null,res=null;
 $('#add').onclick=()=>$('#am').hidden=false;$('#acl').onclick=()=>$('#am').hidden=true;
@@ -166,7 +168,7 @@ if(x1<=x0||y1<=y0){alert('Nothing left - lower the cut-out strength.');return}
 const o=document.createElement('canvas');o.width=x1-x0+1;o.height=y1-y0+1;o.getContext('2d').drawImage(res,-x0,-y0);
 const kind=$('#kind').value,id='c'+Date.now(),name=$('#nm').value||'My toy';
 custom.push({id,kind,name,url:o.toDataURL('image/png')});mk(id,kind,name,custom[custom.length-1].url);saveItems();
-if(kind==='vehicle'){if(slot)veh2=id;else veh=id;mode='drive';rst();going=false;focus(0)}else{sel=id;tool=null;mode='build'}
+if(kind==='boat'){boat=id;mode='drive';rst();going=false;focus(0)}else if(kind==='vehicle'){if(slot)veh2=id;else veh=id;mode='drive';rst();going=false;focus(0)}else{sel=id;tool=null;mode='build'}
 $('#edit').hidden=true;$('#nm').value='';$('#am').hidden=true;ui()};
 rs();focus(pts.length-1);ui();frame();
 </script></body></html>
