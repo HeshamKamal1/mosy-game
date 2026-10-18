@@ -1,1280 +1,160 @@
 <!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Toy Racer & Custom Track Builder</title>
-  <!-- Tailwind CSS -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <!-- FontAwesome for Icons -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <!-- Google Fonts: Fredoka for playful cartoon look -->
-  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&display=swap" rel="stylesheet">
-  <style>
-    * {
-      font-family: 'Fredoka', cursive, sans-serif;
-      user-select: none;
-      -webkit-user-select: none;
-      touch-action: manipulation;
-    }
-    body {
-      background: #1e293b;
-      overflow: hidden;
-      color: #fff;
-    }
-    .custom-scrollbar::-webkit-scrollbar {
-      width: 8px;
-      height: 8px;
-    }
-    .custom-scrollbar::-webkit-scrollbar-track {
-      background: rgba(0,0,0,0.1);
-      border-radius: 8px;
-    }
-    .custom-scrollbar::-webkit-scrollbar-thumb {
-      background: rgba(255,255,255,0.3);
-      border-radius: 8px;
-    }
-    .btn-cartoon {
-      transition: transform 0.1s ease, box-shadow 0.1s ease;
-      box-shadow: 0 6px 0 rgba(0,0,0,0.25);
-    }
-    .btn-cartoon:active {
-      transform: translateY(4px);
-      box-shadow: 0 2px 0 rgba(0,0,0,0.25);
-    }
-    canvas {
-      touch-action: none;
-    }
-  </style>
-</head>
-<body class="h-screen w-screen flex flex-col justify-between select-none">
-
-  <!-- TOP NAV BAR -->
-  <header class="bg-slate-800/90 border-b-4 border-slate-700 px-4 py-2 flex items-center justify-between z-20 shrink-0">
-    <div class="flex items-center space-x-3">
-      <div class="bg-amber-500 text-slate-900 font-black p-2 rounded-xl text-xl flex items-center shadow-md">
-        <i class="fa-solid fa-car-side mr-2"></i> TOY RACER
-      </div>
-      <div id="coinCountBadge" class="bg-amber-400 text-amber-950 font-bold px-3 py-1 rounded-full text-lg flex items-center border-2 border-amber-300">
-        <i class="fa-solid fa-coins mr-1.5 text-amber-700"></i> <span id="coinsVal">0</span>
-      </div>
-    </div>
-
-    <!-- Navigation Tabs -->
-    <nav class="flex items-center space-x-2">
-      <button onclick="switchTab('race')" id="tab-race" class="btn-cartoon px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-white font-bold rounded-xl flex items-center text-sm md:text-base">
-        <i class="fa-solid fa-flag-checkered mr-2"></i> Drive
-      </button>
-      <button onclick="switchTab('garage')" id="tab-garage" class="btn-cartoon px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl flex items-center text-sm md:text-base">
-        <i class="fa-solid fa-warehouse mr-2"></i> Garage
-      </button>
-      <button onclick="switchTab('creator')" id="tab-creator" class="btn-cartoon px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-xl flex items-center text-sm md:text-base">
-        <i class="fa-solid fa-wand-magic-sparkles mr-2"></i> Toy Scanner
-      </button>
-      <button onclick="switchTab('builder')" id="tab-builder" class="btn-cartoon px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded-xl flex items-center text-sm md:text-base">
-        <i class="fa-solid fa-route mr-2"></i> Track Studio
-      </button>
-    </nav>
-  </header>
-
-  <!-- MAIN CONTAINER (SCREEN SWITCHER) -->
-  <main class="relative flex-1 w-full overflow-hidden bg-slate-900">
-
-    <!-- 1. RACE CANVAS VIEW -->
-    <section id="screen-race" class="absolute inset-0 flex flex-col justify-between">
-      <!-- HUD overlay -->
-      <div class="absolute top-4 left-4 right-4 flex justify-between items-start pointer-events-none z-10">
-        <!-- Speed & Distance -->
-        <div class="bg-slate-900/80 backdrop-blur border-2 border-slate-700 p-3 rounded-2xl flex space-x-4 pointer-events-auto shadow-xl">
-          <div>
-            <div class="text-xs text-slate-400 uppercase font-bold">Speed</div>
-            <div class="text-xl font-black text-amber-400"><span id="hud-speed">0</span> <span class="text-xs">km/h</span></div>
-          </div>
-          <div class="border-l border-slate-700 pl-4">
-            <div class="text-xs text-slate-400 uppercase font-bold">Distance</div>
-            <div class="text-xl font-black text-emerald-400"><span id="hud-dist">0</span> <span class="text-xs">m</span></div>
-          </div>
-        </div>
-
-        <!-- Fuel Gauge & Controls Top Right -->
-        <div class="flex items-center space-x-3 pointer-events-auto">
-          <div class="bg-slate-900/80 backdrop-blur border-2 border-slate-700 p-3 rounded-2xl w-44 shadow-xl">
-            <div class="flex justify-between text-xs font-bold mb-1">
-              <span class="text-rose-400"><i class="fa-solid fa-gas-pump mr-1"></i> Fuel</span>
-              <span id="hud-fuel-txt" class="text-slate-300">100%</span>
-            </div>
-            <div class="w-full bg-slate-700 h-3 rounded-full overflow-hidden p-0.5">
-              <div id="hud-fuel-bar" class="bg-rose-500 h-full rounded-full transition-all duration-200" style="width: 100%;"></div>
-            </div>
-          </div>
-          <button onclick="resetRace()" class="btn-cartoon bg-slate-700 hover:bg-slate-600 p-3 rounded-2xl text-white font-bold shadow-lg" title="Restart Level">
-            <i class="fa-solid fa-rotate-right text-xl"></i>
-          </button>
-        </div>
-      </div>
-
-      <!-- Game Canvas -->
-      <div class="relative w-full h-full">
-        <canvas id="gameCanvas" class="w-full h-full block bg-sky-300"></canvas>
-
-        <!-- Game Over / Fuel Out Modal Overlay -->
-        <div id="gameOverModal" class="hidden absolute inset-0 bg-slate-950/80 backdrop-blur-sm flex flex-col items-center justify-center z-30 p-4">
-          <div class="bg-slate-800 border-4 border-amber-500 p-6 rounded-3xl max-w-sm w-full text-center shadow-2xl space-y-4">
-            <div class="text-4xl text-amber-400 font-black"><i class="fa-solid fa-triangle-exclamation"></i> Out of Fuel!</div>
-            <p class="text-slate-300">You ran out of fuel or flipped over!</p>
-            <div class="bg-slate-900/60 p-4 rounded-2xl space-y-1 text-left">
-              <div class="flex justify-between text-slate-400 font-bold"><span>Distance:</span> <span id="go-dist" class="text-emerald-400">0 m</span></div>
-              <div class="flex justify-between text-slate-400 font-bold"><span>Coins Collected:</span> <span id="go-coins" class="text-amber-400">0</span></div>
-            </div>
-            <button onclick="resetRace()" class="btn-cartoon w-full py-3 bg-emerald-500 hover:bg-emerald-400 text-white font-black text-lg rounded-2xl">
-              <i class="fa-solid fa-play mr-2"></i> Drive Again
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <!-- On-Screen Controls for Touch / Tablet -->
-      <div class="absolute bottom-4 left-4 right-4 flex justify-between items-end pointer-events-none z-10 px-2">
-        <!-- Left Side: Brake & Tilt Left -->
-        <div class="flex space-x-3 pointer-events-auto">
-          <button id="btnBrake" class="btn-cartoon w-20 h-20 md:w-24 md:h-24 bg-rose-600 border-4 border-rose-400 text-white rounded-3xl flex flex-col items-center justify-center font-black shadow-2xl active:bg-rose-700">
-            <i class="fa-solid fa-backward text-2xl md:text-3xl"></i>
-            <span class="text-xs mt-1">BRAKE</span>
-          </button>
-          <button id="btnTiltLeft" class="btn-cartoon w-16 h-16 md:w-20 md:h-20 bg-slate-700 border-4 border-slate-500 text-white rounded-3xl flex flex-col items-center justify-center font-black shadow-2xl active:bg-slate-600">
-            <i class="fa-solid fa-rotate-left text-xl"></i>
-            <span class="text-[10px]">TILT L</span>
-          </button>
-        </div>
-
-        <!-- Right Side: Tilt Right & Gas / Boost -->
-        <div class="flex space-x-3 pointer-events-auto">
-          <button id="btnTiltRight" class="btn-cartoon w-16 h-16 md:w-20 md:h-20 bg-slate-700 border-4 border-slate-500 text-white rounded-3xl flex flex-col items-center justify-center font-black shadow-2xl active:bg-slate-600">
-            <i class="fa-solid fa-rotate-right text-xl"></i>
-            <span class="text-[10px]">TILT R</span>
-          </button>
-          <button id="btnGas" class="btn-cartoon w-20 h-20 md:w-24 md:h-24 bg-emerald-500 border-4 border-emerald-300 text-white rounded-3xl flex flex-col items-center justify-center font-black shadow-2xl active:bg-emerald-600">
-            <i class="fa-solid fa-forward text-2xl md:text-3xl"></i>
-            <span class="text-xs mt-1">GAS</span>
-          </button>
-        </div>
-      </div>
-    </section>
-
-    <!-- 2. GARAGE SCREEN -->
-    <section id="screen-garage" class="hidden absolute inset-0 p-6 overflow-y-auto custom-scrollbar bg-slate-900">
-      <div class="max-w-5xl mx-auto space-y-6">
-        <div class="flex flex-col md:flex-row md:items-center justify-between border-b border-slate-800 pb-4 gap-4">
-          <div>
-            <h1 class="text-3xl font-black text-amber-400 flex items-center">
-              <i class="fa-solid fa-warehouse mr-3"></i> My Toy Garage
-            </h1>
-            <p class="text-slate-400 text-sm">Select your active vehicle or manage scanned toys and roadside decorations.</p>
-          </div>
-          <button onclick="switchTab('creator')" class="btn-cartoon px-5 py-3 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-2xl flex items-center">
-            <i class="fa-solid fa-camera mr-2"></i> Scan New Toy
-          </button>
-        </div>
-
-        <!-- Vehicles Grid -->
-        <div>
-          <h2 class="text-xl font-bold text-white mb-3 flex items-center">
-            <i class="fa-solid fa-car text-indigo-400 mr-2"></i> Vehicles
-          </h2>
-          <div id="vehicleGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            <!-- Dynamic Vehicles Injection -->
-          </div>
-        </div>
-
-        <!-- Props / Scanned Drawings Grid -->
-        <div class="pt-6 border-t border-slate-800">
-          <h2 class="text-xl font-bold text-white mb-3 flex items-center">
-            <i class="fa-solid fa-tree text-emerald-400 mr-2"></i> Roadside Props (Trees & Buildings)
-          </h2>
-          <div id="propsGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-            <!-- Dynamic Props Injection -->
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- 3. SCANNER / CREATOR SCREEN -->
-    <section id="screen-creator" class="hidden absolute inset-0 p-4 md:p-6 overflow-y-auto custom-scrollbar bg-slate-900">
-      <div class="max-w-5xl mx-auto space-y-4">
-        <div class="flex items-center justify-between border-b border-slate-800 pb-3">
-          <div>
-            <h1 class="text-2xl md:text-3xl font-black text-purple-400 flex items-center">
-              <i class="fa-solid fa-wand-magic-sparkles mr-3"></i> Toy Scanner & Eraser
-            </h1>
-            <p class="text-slate-400 text-xs md:text-sm">Snap a photo of your toy or drawing, remove the background, and cartoonify it!</p>
-          </div>
-        </div>
-
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          <!-- Left Panel: Controls & Input -->
-          <div class="lg:col-span-4 bg-slate-800 border-2 border-slate-700 p-4 rounded-3xl space-y-4 shadow-xl">
-            <!-- Upload Box -->
-            <div>
-              <label class="block text-slate-300 font-bold text-sm mb-2">1. Upload or Capture Photo</label>
-              <input type="file" id="creatorFileInput" accept="image/*" class="hidden" onchange="handleImageUpload(event)">
-              <button onclick="document.getElementById('creatorFileInput').click()" class="btn-cartoon w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-2xl flex items-center justify-center">
-                <i class="fa-solid fa-camera mr-2"></i> Choose Photo / Take Picture
-              </button>
-            </div>
-
-            <!-- Asset Type Selection -->
-            <div>
-              <label class="block text-slate-300 font-bold text-sm mb-2">2. Type of Toy</label>
-              <div class="grid grid-cols-2 gap-2">
-                <button type="button" id="btnTypeVehicle" onclick="setCreatorType('vehicle')" class="py-2 px-3 rounded-xl border-2 border-purple-500 bg-purple-500/20 text-purple-300 font-bold text-sm flex items-center justify-center">
-                  <i class="fa-solid fa-car mr-2"></i> Vehicle
-                </button>
-                <button type="button" id="btnTypeProp" onclick="setCreatorType('prop')" class="py-2 px-3 rounded-xl border-2 border-slate-700 bg-slate-700/50 text-slate-400 font-bold text-sm flex items-center justify-center">
-                  <i class="fa-solid fa-building mr-2"></i> Roadside Prop
-                </button>
-              </div>
-            </div>
-
-            <!-- Auto Background Keying / Tolerance -->
-            <div class="space-y-2 bg-slate-900/60 p-3 rounded-2xl border border-slate-700">
-              <div class="flex justify-between text-xs font-bold text-slate-300">
-                <span>Auto White BG Remover</span>
-                <span id="toleranceVal">30</span>
-              </div>
-              <input type="range" id="toleranceSlider" min="0" max="100" value="30" oninput="updateKeying()" class="w-full accent-purple-500">
-              <p class="text-[11px] text-slate-400">Drag to automatically erase white paper background.</p>
-            </div>
-
-            <!-- Manual Brush Controls -->
-            <div class="space-y-2 bg-slate-900/60 p-3 rounded-2xl border border-slate-700">
-              <label class="block text-slate-300 font-bold text-xs mb-1">Manual Eraser Brush</label>
-              <div class="flex items-center space-x-2">
-                <button onclick="setTool('eraser')" id="toolEraser" class="btn-cartoon flex-1 py-2 bg-rose-600 text-white text-xs font-bold rounded-xl flex items-center justify-center">
-                  <i class="fa-solid fa-eraser mr-1"></i> Eraser
-                </button>
-                <button onclick="setTool('restore')" id="toolRestore" class="btn-cartoon flex-1 py-2 bg-slate-700 text-slate-300 text-xs font-bold rounded-xl flex items-center justify-center">
-                  <i class="fa-solid fa-rotate-left mr-1"></i> Restore
-                </button>
-              </div>
-              <div class="flex items-center space-x-2 mt-2">
-                <span class="text-xs text-slate-400">Size:</span>
-                <input type="range" id="brushSize" min="5" max="60" value="25" class="w-full accent-purple-500">
-              </div>
-            </div>
-
-            <!-- Cartoonify Filters -->
-            <div class="space-y-2 bg-slate-900/60 p-3 rounded-2xl border border-slate-700">
-              <label class="block text-slate-300 font-bold text-xs mb-1">Cartoon Filter Effect</label>
-              <div class="grid grid-cols-2 gap-2">
-                <button onclick="applyCartoonEffect('bold')" class="py-1.5 bg-purple-900/50 hover:bg-purple-800 text-purple-200 text-xs font-bold rounded-lg border border-purple-500/50">
-                  Vibrant & Bold
-                </button>
-                <button onclick="applyCartoonEffect('poster')" class="py-1.5 bg-purple-900/50 hover:bg-purple-800 text-purple-200 text-xs font-bold rounded-lg border border-purple-500/50">
-                  Outline Boost
-                </button>
-              </div>
-            </div>
-
-            <!-- Toy Name & Save -->
-            <div class="pt-2">
-              <input type="text" id="toyNameInput" placeholder="Give it a name (e.g. Red Truck)" class="w-full bg-slate-900 border-2 border-slate-700 rounded-xl px-3 py-2 text-white font-bold text-sm focus:outline-none focus:border-purple-500 mb-3">
-              <button onclick="saveCustomToy()" class="btn-cartoon w-full py-3 bg-emerald-500 hover:bg-emerald-400 text-white font-black rounded-2xl flex items-center justify-center text-base shadow-lg">
-                <i class="fa-solid fa-floppy-disk mr-2"></i> Save Toy to Garage
-              </button>
-            </div>
-          </div>
-
-          <!-- Right Panel: Canvas Interactive Area -->
-          <div class="lg:col-span-8 flex flex-col bg-slate-950 border-2 border-slate-800 rounded-3xl p-4 items-center justify-center relative min-h-[350px]">
-            <canvas id="creatorCanvas" class="max-w-full max-h-[500px] border border-slate-800 rounded-2xl shadow-inner cursor-crosshair bg-[radial-gradient(#334155_1px,transparent_1px)] [background-size:16px_16px]"></canvas>
-            <p id="creatorPlaceholderText" class="text-slate-500 font-bold text-center absolute pointer-events-none">
-              <i class="fa-solid fa-cloud-arrow-up text-4xl block mb-2"></i>
-              Upload a picture of your toy or drawing to start editing
-            </p>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- 4. TRACK BUILDER SCREEN -->
-    <section id="screen-builder" class="hidden absolute inset-0 p-4 md:p-6 overflow-y-auto custom-scrollbar bg-slate-900">
-      <div class="max-w-5xl mx-auto space-y-4">
-        <div class="flex items-center justify-between border-b border-slate-800 pb-3">
-          <div>
-            <h1 class="text-2xl md:text-3xl font-black text-amber-400 flex items-center">
-              <i class="fa-solid fa-route mr-3"></i> Custom Track Studio
-            </h1>
-            <p class="text-slate-400 text-xs md:text-sm">Design hills, slopes, and place your scanned drawings on the roadside!</p>
-          </div>
-          <button onclick="switchTab('race')" class="btn-cartoon px-5 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-white font-black rounded-2xl flex items-center">
-            <i class="fa-solid fa-play mr-2"></i> Test Drive Track
-          </button>
-        </div>
-
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          <!-- Track Parameters Controls -->
-          <div class="lg:col-span-4 bg-slate-800 border-2 border-slate-700 p-4 rounded-3xl space-y-4 shadow-xl">
-            <h2 class="text-lg font-bold text-white border-b border-slate-700 pb-2">Hill Profile Settings</h2>
-            
-            <div class="space-y-2">
-              <div class="flex justify-between text-xs font-bold text-slate-300">
-                <span>Hill Height / Steepness</span>
-                <span id="valHillAmplitude">60</span>
-              </div>
-              <input type="range" id="sliderHillAmplitude" min="20" max="140" value="60" oninput="updateTrackParams()" class="w-full accent-amber-500">
-            </div>
-
-            <div class="space-y-2">
-              <div class="flex justify-between text-xs font-bold text-slate-300">
-                <span>Hill Frequency / Bumps</span>
-                <span id="valHillFreq">0.005</span>
-              </div>
-              <input type="range" id="sliderHillFreq" min="1" max="10" value="5" oninput="updateTrackParams()" class="w-full accent-amber-500">
-            </div>
-
-            <div class="space-y-2">
-              <div class="flex justify-between text-xs font-bold text-slate-300">
-                <span>Gravity Strength</span>
-                <span id="valGravity">1.0</span>
-              </div>
-              <input type="range" id="sliderGravity" min="5" max="20" value="10" oninput="updateTrackParams()" class="w-full accent-amber-500">
-            </div>
-
-            <!-- Roadside Prop Placement Selector -->
-            <div class="pt-4 border-t border-slate-700">
-              <h3 class="text-sm font-bold text-amber-300 mb-2">Roadside Decorations to Include</h3>
-              <div id="builderPropsSelector" class="flex flex-wrap gap-2 max-h-40 overflow-y-auto custom-scrollbar p-1">
-                <!-- Injected prop checkboxes -->
-              </div>
-            </div>
-          </div>
-
-          <!-- Interactive Track Preview Canvas -->
-          <div class="lg:col-span-8 bg-slate-950 border-2 border-slate-800 rounded-3xl p-4 flex flex-col justify-between">
-            <div class="text-xs font-bold text-slate-400 mb-2">Generated Track Elevation Profile:</div>
-            <div class="relative w-full h-64 bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
-              <canvas id="builderCanvas" class="w-full h-full block"></canvas>
-            </div>
-            <p class="text-xs text-slate-400 mt-3 text-center">
-              Changes applied here instantly update your driving stage!
-            </p>
-          </div>
-        </div>
-      </div>
-    </section>
-
-  </main>
-
-  <!-- JAVASCRIPT ENGINE -->
-  <script>
-    /* =========================================================================
-       1. GLOBAL STATE & SOUND ENGINE (Web Audio API)
-       ========================================================================= */
-    const STATE = {
-      coins: 100,
-      activeVehicleId: 'default_buggy',
-      vehicles: [],
-      props: [],
-      track: {
-        amplitude: 60,
-        frequency: 0.005,
-        gravity: 0.35,
-        placedProps: []
-      }
-    };
-
-    // Sound Synthesizer via Web Audio API
-    class SoundEngine {
-      constructor() {
-        this.ctx = null;
-        this.engineOsc = null;
-        this.engineGain = null;
-      }
-      init() {
-        if (!this.ctx) {
-          const AudioContext = window.AudioContext || window.webkitAudioContext;
-          this.ctx = new AudioContext();
-        }
-      }
-      playCoin() {
-        this.init();
-        const osc = this.ctx.createOscillator();
-        const gain = this.ctx.createGain();
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(800, this.ctx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(1400, this.ctx.currentTime + 0.12);
-        gain.gain.setValueAtTime(0.3, this.ctx.currentTime);
-        gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.12);
-        osc.connect(gain);
-        gain.connect(this.ctx.destination);
-        osc.start();
-        osc.stop(this.ctx.currentTime + 0.12);
-      }
-      playFuel() {
-        this.init();
-        const osc = this.ctx.createOscillator();
-        const gain = this.ctx.createGain();
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(300, this.ctx.currentTime);
-        osc.frequency.linearRampToValueAtTime(600, this.ctx.currentTime + 0.2);
-        gain.gain.setValueAtTime(0.4, this.ctx.currentTime);
-        gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.2);
-        osc.connect(gain);
-        gain.connect(this.ctx.destination);
-        osc.start();
-        osc.stop(this.ctx.currentTime + 0.2);
-      }
-      startEngineSound() {
-        this.init();
-        if (this.engineOsc) return;
-        this.engineOsc = this.ctx.createOscillator();
-        this.engineGain = this.ctx.createGain();
-        this.engineOsc.type = 'sawtooth';
-        this.engineOsc.frequency.setValueAtTime(60, this.ctx.currentTime);
-        this.engineGain.gain.setValueAtTime(0.05, this.ctx.currentTime);
-        this.engineOsc.connect(this.engineGain);
-        this.engineGain.connect(this.ctx.destination);
-        this.engineOsc.start();
-      }
-      updateEngineSound(speed) {
-        if (!this.engineOsc || !this.ctx) return;
-        const targetFreq = 50 + Math.abs(speed) * 12;
-        this.engineOsc.frequency.setTargetAtTime(targetFreq, this.ctx.currentTime, 0.1);
-      }
-      stopEngineSound() {
-        if (this.engineOsc) {
-          try {
-            this.engineOsc.stop();
-            this.engineOsc.disconnect();
-          } catch (e) {}
-          this.engineOsc = null;
-        }
-      }
-    }
-    const soundFx = new SoundEngine();
-
-    /* =========================================================================
-       2. DEFAULT PRESET ASSETS (CANVAS GENERATED SVG DATA URLS)
-       ========================================================================= */
-    function createDefaultBuggy() {
-      const cvs = document.createElement('canvas');
-      cvs.width = 160; cvs.height = 90;
-      const ctx = cvs.getContext('2d');
-      // Body
-      ctx.fillStyle = '#ef4444';
-      ctx.beginPath();
-      ctx.roundRect(20, 30, 120, 35, 15);
-      ctx.fill();
-      ctx.lineWidth = 4;
-      ctx.strokeStyle = '#991b1b';
-      ctx.stroke();
-      // Roof / Cabin
-      ctx.fillStyle = '#38bdf8';
-      ctx.beginPath();
-      ctx.roundRect(50, 10, 60, 25, 8);
-      ctx.fill();
-      ctx.stroke();
-      // Driver smile
-      ctx.fillStyle = '#fef08a';
-      ctx.beginPath();
-      ctx.arc(80, 22, 7, 0, Math.PI * 2);
-      ctx.fill();
-      return cvs.toDataURL();
-    }
-
-    function createDefaultTractor() {
-      const cvs = document.createElement('canvas');
-      cvs.width = 160; cvs.height = 90;
-      const ctx = cvs.getContext('2d');
-      // Main Body
-      ctx.fillStyle = '#22c55e';
-      ctx.beginPath();
-      ctx.roundRect(30, 25, 100, 40, 10);
-      ctx.fill();
-      ctx.lineWidth = 4;
-      ctx.strokeStyle = '#15803d';
-      ctx.stroke();
-      // Cabin
-      ctx.fillStyle = '#16a34a';
-      ctx.fillRect(80, 5, 45, 30);
-      ctx.strokeRect(80, 5, 45, 30);
-      // Chimney
-      ctx.fillStyle = '#334155';
-      ctx.fillRect(40, 5, 10, 20);
-      return cvs.toDataURL();
-    }
-
-    function createDefaultTree() {
-      const cvs = document.createElement('canvas');
-      cvs.width = 100; cvs.height = 140;
-      const ctx = cvs.getContext('2d');
-      // Trunk
-      ctx.fillStyle = '#78350f';
-      ctx.fillRect(40, 80, 20, 50);
-      // Foliage
-      ctx.fillStyle = '#10b981';
-      ctx.beginPath();
-      ctx.arc(50, 60, 40, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = '#34d399';
-      ctx.beginPath();
-      ctx.arc(40, 45, 25, 0, Math.PI * 2);
-      ctx.fill();
-      return cvs.toDataURL();
-    }
-
-    function createDefaultHouse() {
-      const cvs = document.createElement('canvas');
-      cvs.width = 120; cvs.height = 130;
-      const ctx = cvs.getContext('2d');
-      // Body
-      ctx.fillStyle = '#fdba74';
-      ctx.fillRect(20, 50, 80, 70);
-      ctx.lineWidth = 3; ctx.strokeStyle = '#c2410c';
-      ctx.strokeRect(20, 50, 80, 70);
-      // Roof
-      ctx.fillStyle = '#ea580c';
-      ctx.beginPath();
-      ctx.moveTo(10, 50); ctx.lineTo(60, 10); ctx.lineTo(110, 50);
-      ctx.closePath(); ctx.fill(); ctx.stroke();
-      // Door
-      ctx.fillStyle = '#78350f';
-      ctx.fillRect(50, 85, 20, 35);
-      return cvs.toDataURL();
-    }
-
-    // Initialize Default Storage Data
-    function initDefaultData() {
-      const loadedVehicles = localStorage.getItem('toy_racers_vehicles');
-      const loadedProps = localStorage.getItem('toy_racers_props');
-
-      if (loadedVehicles) {
-        STATE.vehicles = JSON.parse(loadedVehicles);
-      } else {
-        STATE.vehicles = [
-          { id: 'default_buggy', name: 'Red Buggy', type: 'vehicle', img: createDefaultBuggy() },
-          { id: 'default_tractor', name: 'Green Tractor', type: 'vehicle', img: createDefaultTractor() }
-        ];
-        saveVehiclesToStorage();
-      }
-
-      if (loadedProps) {
-        STATE.props = JSON.parse(loadedProps);
-      } else {
-        STATE.props = [
-          { id: 'default_tree', name: 'Cartoon Tree', type: 'prop', img: createDefaultTree(), enabled: true },
-          { id: 'default_house', name: 'Red Roof House', type: 'prop', img: createDefaultHouse(), enabled: true }
-        ];
-        savePropsToStorage();
-      }
-    }
-
-    function saveVehiclesToStorage() {
-      localStorage.setItem('toy_racers_vehicles', JSON.stringify(STATE.vehicles));
-    }
-    function savePropsToStorage() {
-      localStorage.setItem('toy_racers_props', JSON.stringify(STATE.props));
-    }
-
-    /* =========================================================================
-       3. NAVIGATION & TAB SWITCHING
-       ========================================================================= */
-    function switchTab(tabId) {
-      ['race', 'garage', 'creator', 'builder'].forEach(id => {
-        document.getElementById(`screen-${id}`).classList.add('hidden');
-      });
-      document.getElementById(`screen-${tabId}`).classList.remove('hidden');
-
-      if (tabId === 'garage') renderGarage();
-      if (tabId === 'builder') renderBuilder();
-      if (tabId === 'race') {
-        soundFx.startEngineSound();
-        resetRace();
-      } else {
-        soundFx.stopEngineSound();
-      }
-    }
-
-    /* =========================================================================
-       4. CREATOR & BACKGROUND REMOVAL / ERASER TOOL ENGINE
-       ========================================================================= */
-    let creatorCanvas, creatorCtx;
-    let creatorRawImage = null;
-    let currentTool = 'eraser'; // 'eraser' or 'restore'
-    let creatorAssetType = 'vehicle';
-    let isDrawingOnCreator = false;
-
-    function initCreator() {
-      creatorCanvas = document.getElementById('creatorCanvas');
-      creatorCtx = creatorCanvas.getContext('2d');
-
-      // Mouse / Touch drawing listeners
-      creatorCanvas.addEventListener('mousedown', startErasing);
-      creatorCanvas.addEventListener('mousemove', drawErasing);
-      window.addEventListener('mouseup', stopErasing);
-
-      creatorCanvas.addEventListener('touchstart', (e) => { e.preventDefault(); startErasing(e.touches[0]); }, {passive:false});
-      creatorCanvas.addEventListener('touchmove', (e) => { e.preventDefault(); drawErasing(e.touches[0]); }, {passive:false});
-      window.addEventListener('touchend', stopErasing);
-    }
-
-    function setCreatorType(type) {
-      creatorAssetType = type;
-      const btnV = document.getElementById('btnTypeVehicle');
-      const btnP = document.getElementById('btnTypeProp');
-      if (type === 'vehicle') {
-        btnV.className = 'py-2 px-3 rounded-xl border-2 border-purple-500 bg-purple-500/20 text-purple-300 font-bold text-sm flex items-center justify-center';
-        btnP.className = 'py-2 px-3 rounded-xl border-2 border-slate-700 bg-slate-700/50 text-slate-400 font-bold text-sm flex items-center justify-center';
-      } else {
-        btnP.className = 'py-2 px-3 rounded-xl border-2 border-purple-500 bg-purple-500/20 text-purple-300 font-bold text-sm flex items-center justify-center';
-        btnV.className = 'py-2 px-3 rounded-xl border-2 border-slate-700 bg-slate-700/50 text-slate-400 font-bold text-sm flex items-center justify-center';
-      }
-    }
-
-    function setTool(tool) {
-      currentTool = tool;
-      const bE = document.getElementById('toolEraser');
-      const bR = document.getElementById('toolRestore');
-      if (tool === 'eraser') {
-        bE.className = 'btn-cartoon flex-1 py-2 bg-rose-600 text-white text-xs font-bold rounded-xl flex items-center justify-center';
-        bR.className = 'btn-cartoon flex-1 py-2 bg-slate-700 text-slate-300 text-xs font-bold rounded-xl flex items-center justify-center';
-      } else {
-        bR.className = 'btn-cartoon flex-1 py-2 bg-rose-600 text-white text-xs font-bold rounded-xl flex items-center justify-center';
-        bE.className = 'btn-cartoon flex-1 py-2 bg-slate-700 text-slate-300 text-xs font-bold rounded-xl flex items-center justify-center';
-      }
-    }
-
-    function handleImageUpload(e) {
-      const file = e.target.files[0];
-      if (!file) return;
-
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const img = new Image();
-        img.onload = () => {
-          creatorRawImage = img;
-          document.getElementById('creatorPlaceholderText').classList.add('hidden');
-          // Scale to max dimensions
-          let w = img.width, h = img.height;
-          const maxDim = 450;
-          if (w > maxDim || h > maxDim) {
-            if (w > h) { h = Math.round((h * maxDim) / w); w = maxDim; }
-            else { w = Math.round((w * maxDim) / h); h = maxDim; }
-          }
-          creatorCanvas.width = w;
-          creatorCanvas.height = h;
-
-          updateKeying(); // apply initial background removal
-        };
-        img.src = event.target.result;
-      };
-      reader.readAsDataURL(file);
-    }
-
-    // Auto White/Light Background Keying Algorithm
-    function updateKeying() {
-      if (!creatorRawImage) return;
-      const tol = parseInt(document.getElementById('toleranceSlider').value);
-      document.getElementById('toleranceVal').innerText = tol;
-
-      creatorCtx.clearRect(0, 0, creatorCanvas.width, creatorCanvas.height);
-      creatorCtx.drawImage(creatorRawImage, 0, 0, creatorCanvas.width, creatorCanvas.height);
-
-      if (tol <= 0) return;
-
-      const imgData = creatorCtx.getImageData(0, 0, creatorCanvas.width, creatorCanvas.height);
-      const data = imgData.data;
-      const threshold = 255 - (tol * 2.2);
-
-      for (let i = 0; i < data.length; i += 4) {
-        const r = data[i], g = data[i+1], b = data[i+2];
-        // Check for light background color
-        if (r > threshold && g > threshold && b > threshold) {
-          data[i+3] = 0; // Transparent
-        }
-      }
-      creatorCtx.putImageData(imgData, 0, 0);
-    }
-
-    function startErasing(e) { isDrawingOnCreator = true; drawErasing(e); }
-    function stopErasing() { isDrawingOnCreator = false; }
-
-    function drawErasing(e) {
-      if (!isDrawingOnCreator || !creatorRawImage) return;
-      const rect = creatorCanvas.getBoundingClientRect();
-      const x = (e.clientX - rect.left) * (creatorCanvas.width / rect.width);
-      const y = (e.clientY - rect.top) * (creatorCanvas.height / rect.height);
-      const size = parseInt(document.getElementById('brushSize').value);
-
-      creatorCtx.save();
-      creatorCtx.beginPath();
-      creatorCtx.arc(x, y, size / 2, 0, Math.PI * 2);
-
-      if (currentTool === 'eraser') {
-        creatorCtx.globalCompositeOperation = 'destination-out';
-        creatorCtx.fill();
-      } else {
-        // Restore from original image
-        creatorCtx.clip();
-        creatorCtx.globalCompositeOperation = 'source-over';
-        creatorCtx.drawImage(creatorRawImage, 0, 0, creatorCanvas.width, creatorCanvas.height);
-      }
-      creatorCtx.restore();
-    }
-
-    function applyCartoonEffect(style) {
-      if (!creatorRawImage) return;
-      const imgData = creatorCtx.getImageData(0, 0, creatorCanvas.width, creatorCanvas.height);
-      const data = imgData.data;
-
-      for (let i = 0; i < data.length; i += 4) {
-        if (data[i+3] === 0) continue;
-        if (style === 'bold') {
-          // Posterize / High Saturation
-          data[i] = Math.floor(data[i] / 64) * 64;
-          data[i+1] = Math.floor(data[i+1] / 64) * 64;
-          data[i+2] = Math.floor(data[i+2] / 64) * 64;
-        } else if (style === 'poster') {
-          // Contrast Boost
-          data[i] = data[i] > 128 ? 230 : 40;
-          data[i+1] = data[i+1] > 128 ? 230 : 40;
-          data[i+2] = data[i+2] > 128 ? 230 : 40;
-        }
-      }
-      creatorCtx.putImageData(imgData, 0, 0);
-    }
-
-    function saveCustomToy() {
-      if (!creatorRawImage) {
-        alert("Please upload or capture a photo first!");
-        return;
-      }
-      const nameInput = document.getElementById('toyNameInput').value.trim();
-      const toyName = nameInput || (creatorAssetType === 'vehicle' ? 'Custom Toy Car' : 'Custom Drawing');
-      const dataUrl = creatorCanvas.toDataURL('image/png');
-
-      const newItem = {
-        id: 'custom_' + Date.now(),
-        name: toyName,
-        type: creatorAssetType,
-        img: dataUrl,
-        enabled: true
-      };
-
-      if (creatorAssetType === 'vehicle') {
-        STATE.vehicles.push(newItem);
-        STATE.activeVehicleId = newItem.id;
-        saveVehiclesToStorage();
-      } else {
-        STATE.props.push(newItem);
-        savePropsToStorage();
-      }
-
-      alert(`Yay! Saved "${toyName}" to your Garage!`);
-      switchTab('garage');
-    }
-
-    /* =========================================================================
-       5. GARAGE GALLERY & MANAGEMENT
-       ========================================================================= */
-    function renderGarage() {
-      const vehGrid = document.getElementById('vehicleGrid');
-      vehGrid.innerHTML = '';
-
-      STATE.vehicles.forEach(v => {
-        const isActive = v.id === STATE.activeVehicleId;
-        const card = document.createElement('div');
-        card.className = `bg-slate-800 border-4 ${isActive ? 'border-amber-400 bg-amber-500/10' : 'border-slate-700'} p-4 rounded-3xl flex flex-col items-center justify-between space-y-3 relative group shadow-xl`;
-        card.innerHTML = `
-          ${isActive ? '<span class="absolute top-2 right-2 bg-amber-400 text-slate-950 font-black text-[10px] px-2 py-0.5 rounded-full uppercase">Selected</span>' : ''}
-          <div class="w-full h-32 flex items-center justify-center p-2">
-            <img src="${v.img}" class="max-h-full max-w-full object-contain filter drop-shadow-lg">
-          </div>
-          <div class="text-center font-bold text-white text-sm truncate w-full">${v.name}</div>
-          <div class="flex space-x-2 w-full">
-            <button onclick="selectVehicle('${v.id}')" class="btn-cartoon flex-1 py-1.5 ${isActive ? 'bg-amber-500 text-slate-950' : 'bg-slate-700 hover:bg-slate-600 text-slate-200'} font-bold rounded-xl text-xs">
-              ${isActive ? 'Active' : 'Select'}
-            </button>
-            ${!v.id.startsWith('default_') ? `
-              <button onclick="deleteVehicle('${v.id}')" class="btn-cartoon px-2.5 py-1.5 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-xs">
-                <i class="fa-solid fa-trash"></i>
-              </button>
-            ` : ''}
-          </div>
-        `;
-        vehGrid.appendChild(card);
-      });
-
-      const propsGrid = document.getElementById('propsGrid');
-      propsGrid.innerHTML = '';
-      STATE.props.forEach(p => {
-        const card = document.createElement('div');
-        card.className = 'bg-slate-800 border-2 border-slate-700 p-3 rounded-2xl flex flex-col items-center space-y-2 relative shadow-lg';
-        card.innerHTML = `
-          <div class="w-full h-24 flex items-center justify-center p-1">
-            <img src="${p.img}" class="max-h-full max-w-full object-contain filter drop-shadow">
-          </div>
-          <div class="text-center font-bold text-slate-300 text-xs truncate w-full">${p.name}</div>
-          ${!p.id.startsWith('default_') ? `
-            <button onclick="deleteProp('${p.id}')" class="text-rose-400 hover:text-rose-300 text-xs font-bold pt-1">
-              <i class="fa-solid fa-trash mr-1"></i> Delete
-            </button>
-          ` : ''}
-        `;
-        propsGrid.appendChild(card);
-      });
-    }
-
-    function selectVehicle(id) {
-      STATE.activeVehicleId = id;
-      renderGarage();
-    }
-    function deleteVehicle(id) {
-      STATE.vehicles = STATE.vehicles.filter(v => v.id !== id);
-      if (STATE.activeVehicleId === id && STATE.vehicles.length > 0) {
-        STATE.activeVehicleId = STATE.vehicles[0].id;
-      }
-      saveVehiclesToStorage();
-      renderGarage();
-    }
-    function deleteProp(id) {
-      STATE.props = STATE.props.filter(p => p.id !== id);
-      savePropsToStorage();
-      renderGarage();
-    }
-
-    /* =========================================================================
-       6. TRACK STUDIO & PREVIEW CANVAS
-       ========================================================================= */
-    function renderBuilder() {
-      // Update UI sliders from state
-      document.getElementById('sliderHillAmplitude').value = STATE.track.amplitude;
-      document.getElementById('valHillAmplitude').innerText = STATE.track.amplitude;
-      document.getElementById('sliderHillFreq').value = STATE.track.frequency * 1000;
-      document.getElementById('valHillFreq').innerText = STATE.track.frequency;
-      document.getElementById('sliderGravity').value = STATE.track.gravity * 20;
-      document.getElementById('valGravity').innerText = (STATE.track.gravity * 2.85).toFixed(1);
-
-      // Render roadside prop checkboxes
-      const selContainer = document.getElementById('builderPropsSelector');
-      selContainer.innerHTML = '';
-      STATE.props.forEach(p => {
-        const item = document.createElement('label');
-        item.className = 'flex items-center space-x-2 bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-700 cursor-pointer text-xs font-bold text-slate-300';
-        item.innerHTML = `
-          <input type="checkbox" ${p.enabled ? 'checked' : ''} onchange="togglePropEnabled('${p.id}')" class="accent-amber-500 rounded">
-          <span class="truncate max-w-[100px]">${p.name}</span>
-        `;
-        selContainer.appendChild(item);
-      });
-
-      drawBuilderPreview();
-    }
-
-    function togglePropEnabled(propId) {
-      const prop = STATE.props.find(p => p.id === propId);
-      if (prop) {
-        prop.enabled = !prop.enabled;
-        savePropsToStorage();
-      }
-    }
-
-    function updateTrackParams() {
-      STATE.track.amplitude = parseInt(document.getElementById('sliderHillAmplitude').value);
-      STATE.track.frequency = parseInt(document.getElementById('sliderHillFreq').value) / 1000;
-      STATE.track.gravity = parseInt(document.getElementById('sliderGravity').value) / 20;
-
-      document.getElementById('valHillAmplitude').innerText = STATE.track.amplitude;
-      document.getElementById('valHillFreq').innerText = STATE.track.frequency;
-      document.getElementById('valGravity').innerText = (STATE.track.gravity * 2.85).toFixed(1);
-
-      drawBuilderPreview();
-    }
-
-    function drawBuilderPreview() {
-      const cvs = document.getElementById('builderCanvas');
-      cvs.width = cvs.clientWidth;
-      cvs.height = cvs.clientHeight;
-      const ctx = cvs.getContext('2d');
-
-      ctx.fillStyle = '#0284c7';
-      ctx.fillRect(0, 0, cvs.width, cvs.height);
-
-      ctx.fillStyle = '#22c55e';
-      ctx.beginPath();
-      ctx.moveTo(0, cvs.height);
-
-      for (let x = 0; x <= cvs.width; x += 5) {
-        const worldX = x * 3;
-        const y = cvs.height - 40 - Math.sin(worldX * STATE.track.frequency) * (STATE.track.amplitude * 0.5);
-        ctx.lineTo(x, y);
-      }
-      ctx.lineTo(cvs.width, cvs.height);
-      ctx.closePath();
-      ctx.fill();
-    }
-
-    /* =========================================================================
-       7. 2D SIDE-SCROLLING PHYSICS & GAME ENGINE
-       ========================================================================= */
-    let gameCanvas, gameCtx;
-    let animationFrameId = null;
-
-    // Game Dynamic State
-    let car = {
-      x: 100,
-      y: 100,
-      vx: 0,
-      vy: 0,
-      angle: 0,
-      angularVelocity: 0,
-      width: 80,
-      height: 45,
-      grounded: false
-    };
-
-    let controls = { gas: false, brake: false, tiltLeft: false, tiltRight: false };
-    let fuel = 100;
-    let coinsCollected = 0;
-    let distanceTraveled = 0;
-    let isGameOver = false;
-
-    // Collectibles & Props World Cache
-    let worldItems = []; // {x, type: 'coin'|'fuel'|propObj, collected: bool}
-    let loadedVehicleImg = new Image();
-
-    function initGameEngine() {
-      gameCanvas = document.getElementById('gameCanvas');
-      gameCtx = gameCanvas.getContext('2d');
-
-      window.addEventListener('resize', resizeGameCanvas);
-      resizeGameCanvas();
-
-      // Keyboard Listeners
-      window.addEventListener('keydown', e => {
-        if (e.key === 'ArrowRight' || e.key === 'd') controls.gas = true;
-        if (e.key === 'ArrowLeft' || e.key === 'a') controls.brake = true;
-        if (e.key === 'ArrowUp' || e.key === 'w') controls.tiltRight = true;
-        if (e.key === 'ArrowDown' || e.key === 's') controls.tiltLeft = true;
-      });
-      window.addEventListener('keyup', e => {
-        if (e.key === 'ArrowRight' || e.key === 'd') controls.gas = false;
-        if (e.key === 'ArrowLeft' || e.key === 'a') controls.brake = false;
-        if (e.key === 'ArrowUp' || e.key === 'w') controls.tiltRight = false;
-        if (e.key === 'ArrowDown' || e.key === 's') controls.tiltLeft = false;
-      });
-
-      // Touch Buttons Setup
-      setupTouchButton('btnGas', k => controls.gas = k);
-      setupTouchButton('btnBrake', k => controls.brake = k);
-      setupTouchButton('btnTiltLeft', k => controls.tiltLeft = k);
-      setupTouchButton('btnTiltRight', k => controls.tiltRight = k);
-    }
-
-    function setupTouchButton(id, callback) {
-      const btn = document.getElementById(id);
-      btn.addEventListener('mousedown', () => callback(true));
-      btn.addEventListener('mouseup', () => callback(false));
-      btn.addEventListener('mouseleave', () => callback(false));
-      btn.addEventListener('touchstart', (e) => { e.preventDefault(); callback(true); }, {passive:false});
-      btn.addEventListener('touchend', (e) => { e.preventDefault(); callback(false); }, {passive:false});
-    }
-
-    function resizeGameCanvas() {
-      if (gameCanvas) {
-        gameCanvas.width = gameCanvas.parentElement.clientWidth;
-        gameCanvas.height = gameCanvas.parentElement.clientHeight;
-      }
-    }
-
-    // Height Map Function for Terrain Bezier/Sine Waves
-    function getTerrainHeight(x) {
-      const amp = STATE.track.amplitude;
-      const freq = STATE.track.frequency;
-      return Math.sin(x * freq) * amp + Math.cos(x * freq * 0.5) * (amp * 0.4);
-    }
-
-    function getTerrainSlope(x) {
-      const delta = 2.0;
-      return (getTerrainHeight(x + delta) - getTerrainHeight(x - delta)) / (2 * delta);
-    }
-
-    function resetRace() {
-      document.getElementById('gameOverModal').classList.add('hidden');
-      
-      const activeVehicle = STATE.vehicles.find(v => v.id === STATE.activeVehicleId) || STATE.vehicles[0];
-      if (activeVehicle) {
-        loadedVehicleImg = new Image();
-        loadedVehicleImg.src = activeVehicle.img;
-      }
-
-      car = {
-        x: 100,
-        y: 200,
-        vx: 0,
-        vy: 0,
-        angle: 0,
-        angularVelocity: 0,
-        width: 80,
-        height: 45,
-        grounded: false
-      };
-
-      fuel = 100;
-      coinsCollected = 0;
-      distanceTraveled = 0;
-      isGameOver = false;
-
-      // Generate World Items & Props along the track
-      worldItems = [];
-      const enabledProps = STATE.props.filter(p => p.enabled);
-      for (let x = 400; x < 25000; x += 150) {
-        if (Math.random() < 0.45) {
-          worldItems.push({ x: x, type: 'coin', collected: false });
-        } else if (Math.random() < 0.12) {
-          worldItems.push({ x: x, type: 'fuel', collected: false });
-        }
-
-        // Place Scanned Drawings / Props on Roadside
-        if (enabledProps.length > 0 && Math.random() < 0.25) {
-          const propObj = enabledProps[Math.floor(Math.random() * enabledProps.length)];
-          const pImg = new Image();
-          pImg.src = propObj.img;
-          worldItems.push({ x: x + 50, type: 'prop', img: pImg, width: 90, height: 90 });
-        }
-      }
-
-      if (animationFrameId) cancelAnimationFrame(animationFrameId);
-      gameLoop();
-    }
-
-    function updatePhysics() {
-      if (isGameOver) return;
-
-      const groundY = gameCanvas.height - 120 - getTerrainHeight(car.x);
-      const slope = getTerrainSlope(car.x);
-      const targetAngle = Math.atan(slope);
-
-      // Gas / Brake Acceleration
-      if (controls.gas && fuel > 0) {
-        car.vx += Math.cos(car.angle) * 0.38;
-        car.vy += Math.sin(car.angle) * 0.38;
-        fuel -= 0.08;
-      }
-      if (controls.brake && fuel > 0) {
-        car.vx -= Math.cos(car.angle) * 0.25;
-        car.vy -= Math.sin(car.angle) * 0.25;
-        fuel -= 0.04;
-      }
-
-      // Air / Manual Tilting
-      if (controls.tiltLeft) car.angularVelocity -= 0.008;
-      if (controls.tiltRight) car.angularVelocity += 0.008;
-
-      // Apply Gravity
-      car.vy += STATE.track.gravity;
-
-      // Air resistance
-      car.vx *= 0.99;
-      car.vy *= 0.99;
-      car.angularVelocity *= 0.92;
-
-      // Update position
-      car.x += car.vx;
-      car.y += car.vy;
-      car.angle += car.angularVelocity;
-
-      // Collision with ground
-      const carBottom = car.y + car.height / 2;
-      if (carBottom >= groundY) {
-        car.y = groundY - car.height / 2;
-        car.vy = 0;
-        car.grounded = true;
-
-        // Align angle with hill slope on ground
-        const angleDiff = targetAngle - car.angle;
-        car.angle += angleDiff * 0.2;
-
-        // Friction
-        car.vx *= 0.96;
-      } else {
-        car.grounded = false;
-      }
-
-      // Update distance & engine sound speed
-      if (car.x > distanceTraveled) distanceTraveled = Math.floor(car.x);
-      soundFx.updateEngineSound(car.vx);
-
-      // Check Collectibles
-      worldItems.forEach(item => {
-        if (item.collected) return;
-        if (Math.abs(car.x - item.x) < 45 && Math.abs(car.y - (gameCanvas.height - 120 - getTerrainHeight(item.x))) < 50) {
-          if (item.type === 'coin') {
-            item.collected = true;
-            coinsCollected += 10;
-            STATE.coins += 10;
-            soundFx.playCoin();
-          } else if (item.type === 'fuel') {
-            item.collected = true;
-            fuel = Math.min(100, fuel + 45);
-            soundFx.playFuel();
-          }
-        }
-      });
-
-      // Check Game Over conditions
-      if (fuel <= 0 || (car.grounded && (car.angle > Math.PI / 1.6 || car.angle < -Math.PI / 1.6))) {
-        triggerGameOver();
-      }
-
-      // Update HUD
-      document.getElementById('hud-speed').innerText = Math.floor(Math.abs(car.vx) * 12);
-      document.getElementById('hud-dist').innerText = Math.floor(distanceTraveled / 10);
-      document.getElementById('hud-fuel-txt').innerText = `${Math.ceil(fuel)}%`;
-      document.getElementById('hud-fuel-bar').style.width = `${Math.max(0, fuel)}%`;
-      document.getElementById('coinsVal').innerText = STATE.coins;
-    }
-
-    function triggerGameOver() {
-      isGameOver = true;
-      soundFx.stopEngineSound();
-      document.getElementById('go-dist').innerText = `${Math.floor(distanceTraveled / 10)} m`;
-      document.getElementById('go-coins').innerText = coinsCollected;
-      document.getElementById('gameOverModal').classList.remove('hidden');
-    }
-
-    function renderGame() {
-      gameCtx.clearRect(0, 0, gameCanvas.width, gameCanvas.height);
-
-      // Camera Offset to follow car horizontally & vertically
-      const cameraX = car.x - gameCanvas.width * 0.3;
-      const cameraY = car.y - gameCanvas.height * 0.6;
-
-      gameCtx.save();
-      gameCtx.translate(-cameraX, -cameraY * 0.3); // Smooth parallax on Y
-
-      // 1. Parallax Sky & Clouds Background
-      gameCtx.fillStyle = '#38bdf8';
-      gameCtx.fillRect(cameraX, -500, gameCanvas.width, gameCanvas.height + 1000);
-
-      // Distant mountains/hills
-      gameCtx.fillStyle = '#0284c7';
-      gameCtx.beginPath();
-      gameCtx.moveTo(cameraX, gameCanvas.height);
-      for (let x = cameraX - 100; x <= cameraX + gameCanvas.width + 100; x += 30) {
-        const bgY = gameCanvas.height - 180 - Math.sin(x * 0.002) * 90;
-        gameCtx.lineTo(x, bgY);
-      }
-      gameCtx.lineTo(cameraX + gameCanvas.width + 100, gameCanvas.height + 500);
-      gameCtx.closePath();
-      gameCtx.fill();
-
-      // 2. Roadside Props (Scanned Drawings/Trees/Buildings)
-      worldItems.forEach(item => {
-        if (item.type === 'prop' && item.x > cameraX - 200 && item.x < cameraX + gameCanvas.width + 200) {
-          const itemY = gameCanvas.height - 120 - getTerrainHeight(item.x);
-          try {
-            gameCtx.drawImage(item.img, item.x - item.width / 2, itemY - item.height + 10, item.width, item.height);
-          } catch(e) {}
-        }
-      });
-
-      // 3. Ground / Hill Terrain
-      gameCtx.fillStyle = '#15803d'; // Dirt body underneath
-      gameCtx.beginPath();
-      const startX = Math.floor(cameraX - 100);
-      const endX = Math.floor(cameraX + gameCanvas.width + 100);
-
-      gameCtx.moveTo(startX, gameCanvas.height + 800);
-      for (let x = startX; x <= endX; x += 10) {
-        const y = gameCanvas.height - 120 - getTerrainHeight(x);
-        gameCtx.lineTo(x, y);
-      }
-      gameCtx.lineTo(endX, gameCanvas.height + 800);
-      gameCtx.closePath();
-      gameCtx.fill();
-
-      // Top Grass Line
-      gameCtx.strokeStyle = '#4ade80';
-      gameCtx.lineWidth = 12;
-      gameCtx.stroke();
-
-      // 4. Collectibles (Coins & Fuel)
-      worldItems.forEach(item => {
-        if (item.collected || item.x < cameraX - 100 || item.x > cameraX + gameCanvas.width + 100) return;
-        const itemY = gameCanvas.height - 150 - getTerrainHeight(item.x);
-
-        if (item.type === 'coin') {
-          gameCtx.fillStyle = '#fbbf24';
-          gameCtx.strokeStyle = '#b45309';
-          gameCtx.lineWidth = 3;
-          gameCtx.beginPath();
-          gameCtx.arc(item.x, itemY, 12, 0, Math.PI * 2);
-          gameCtx.fill();
-          gameCtx.stroke();
-          gameCtx.fillStyle = '#78350f';
-          gameCtx.font = 'bold 12px Fredoka';
-          gameCtx.fillText('$', item.x - 3, itemY + 4);
-        } else if (item.type === 'fuel') {
-          gameCtx.fillStyle = '#ef4444';
-          gameCtx.fillRect(item.x - 12, itemY - 15, 24, 30);
-          gameCtx.fillStyle = '#ffffff';
-          gameCtx.font = 'bold 10px Fredoka';
-          gameCtx.fillText('GAS', item.x - 10, itemY + 4);
-        }
-      });
-
-      // 5. Active Toy Car Vehicle & Animated Wheels
-      gameCtx.save();
-      gameCtx.translate(car.x, car.y);
-      gameCtx.rotate(car.angle);
-
-      // Render Toy Car Sprite
-      if (loadedVehicleImg.complete) {
-        gameCtx.drawImage(loadedVehicleImg, -car.width / 2, -car.height / 2 - 5, car.width, car.height);
-      }
-
-      // Wheels
-      const wheelRadius = 14;
-      const wheelXOffset = car.width * 0.3;
-      const wheelYOffset = car.height / 2 - 2;
-
-      gameCtx.fillStyle = '#1e293b';
-      gameCtx.strokeStyle = '#64748b';
-      gameCtx.lineWidth = 4;
-
-      // Rear Wheel
-      gameCtx.beginPath();
-      gameCtx.arc(-wheelXOffset, wheelYOffset, wheelRadius, 0, Math.PI * 2);
-      gameCtx.fill(); gameCtx.stroke();
-
-      // Front Wheel
-      gameCtx.beginPath();
-      gameCtx.arc(wheelXOffset, wheelYOffset, wheelRadius, 0, Math.PI * 2);
-      gameCtx.fill(); gameCtx.stroke();
-
-      gameCtx.restore();
-
-      gameCtx.restore();
-    }
-
-    function gameLoop() {
-      updatePhysics();
-      renderGame();
-      if (!isGameOver) {
-        animationFrameId = requestAnimationFrame(gameLoop);
-      }
-    }
-
-    /* =========================================================================
-       8. INITIALIZATION ON WINDOW LOAD
-       ========================================================================= */
-    window.onload = function() {
-      initDefaultData();
-      initCreator();
-      initGameEngine();
-      switchTab('race');
-    };
-  </script>
-</body>
-</html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Toy Road</title>
+<style>
+:root{--bg:#fff7e0;--ink:#2b2b2b;--card:#fff;--btn:#ffd54a;--on:#ff8a3d;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#2a2518;--ink:#f4f0e4;--card:#3a3322;--btn:#8a6d12;--on:#c55a14}}
+html,body{height:100%;margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,Arial,sans-serif;touch-action:manipulation}
+#app{display:flex;flex-direction:column;height:100%}
+button{font:inherit;font-size:16px;border:0;border-radius:14px;background:var(--btn);color:var(--ink);padding:10px 12px;margin:3px;min-height:46px}
+button.on{background:var(--on);color:#fff}
+#top,#ctl{display:flex;flex-wrap:wrap;justify-content:center}
+#cv{flex:1;width:100%;min-height:0;display:block;touch-action:none}
+#pal{display:flex;overflow-x:auto;gap:6px;padding:4px 6px}
+#pal button{flex:none;padding:4px;width:64px;height:64px}
+#pal img,.g img{max-width:100%;max-height:100%;object-fit:contain}
+.modal{position:fixed;inset:0;background:#0008;display:flex;align-items:center;justify-content:center;z-index:5}
+.modal[hidden]{display:none}
+.card{background:var(--card);border-radius:18px;padding:14px;width:min(92vw,440px);max-height:90vh;overflow:auto;text-align:center}
+#pv{max-width:100%;max-height:240px;background:repeating-conic-gradient(#ccc 0 25%,#fff 0 50%) 0 0/16px 16px;border-radius:10px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:8px}
+.g{position:relative;height:84px;padding:4px}
+.g .x{position:absolute;top:-4px;right:-4px;min-height:0;width:26px;height:26px;padding:0;background:#e55;color:#fff}
+.lbl{display:inline-block;background:var(--btn);border-radius:14px;padding:12px;margin:3px}
+select,input[type=text]{font-size:16px;padding:8px;border-radius:10px;margin:4px}
+small{opacity:.75}
+</style></head><body><div id="app">
+<div id="top"><button data-m="build" class="on">🔨 Build</button><button data-m="drive">🚗 Drive</button><button id="add">📸 New toy</button><button id="gar">🏠 Garage</button></div>
+<canvas id="cv"></canvas>
+<div id="ctl"></div><div id="pal"></div></div>
+
+<div class="modal" id="am" hidden><div class="card">
+<b>Add a toy or a drawing</b><br>
+<label class="lbl">📷 Take photo<input type="file" id="f1" accept="image/*" capture="environment" hidden></label>
+<label class="lbl">🖼️ Pick photo<input type="file" id="f2" accept="image/*" hidden></label>
+<div id="edit" hidden>
+<canvas id="pv"></canvas><br><small>Tap the background in the picture to remove it. Toys should face right.</small><br>
+<label>Cut-out strength <input type="range" id="tol" min="10" max="140" value="55"></label><br>
+<label><input type="checkbox" id="car" checked> Cartoon look</label><br>
+<select id="kind"><option value="vehicle">🚗 Vehicle</option><option value="building">🏠 Building</option><option value="tree">🌳 Tree</option><option value="lake">💧 Lake</option></select>
+<input type="text" id="nm" placeholder="Name" size="12"><br>
+<button id="save" class="on">✅ Save</button></div>
+<button id="acl">Close</button></div></div>
+
+<div class="modal" id="gm" hidden><div class="card"><b>🏠 My Garage</b><br><small>Tap a vehicle to drive it. ✕ deletes your own toys.</small>
+<div class="grid" id="gg"></div><button id="gcl">Close</button></div></div>
+
+<script>
+const $=s=>document.querySelector(s),cv=$('#cv'),cx=cv.getContext('2d');
+const S=20,Y=.6,HT={vehicle:56,building:110,tree:90,lake:70};
+let W=0,H=0,mode='build',cam={x:-200,y:-250},sel='b0',tool=null,veh='v0',veh2=null,t=0,t2=4,slot=0,going=false;
+let pts=[],placed=[],custom=[],hist=[];const items={};
+function mk(id,kind,name,url){const im=new Image();im.src=url;items[id]={id,kind,name,url,im}}
+[['v0','vehicle','🚗',1],['v1','vehicle','🚚',1],['v2','vehicle','🚜',1],['v3','vehicle','🚌',1],['b0','building','🏠'],['b1','building','🏢'],['b2','building','🏫'],['b3','building','🏰'],['t0','tree','🌳'],['t1','tree','🌲'],['t2','tree','🌴']].forEach(([id,k,e,f])=>{
+const c=document.createElement('canvas');c.width=c.height=128;const g=c.getContext('2d');g.font='100px serif';g.textAlign='center';g.textBaseline='middle';
+if(f){g.translate(128,0);g.scale(-1,1)}g.fillText(e,64,70);mk(id,k,e,c.toDataURL())});
+[['l0','Lake','#4aa8e8',1],['l1','Pond','#6cc4f0',.7]].forEach(([id,n,col,s])=>{const c=document.createElement('canvas');c.width=200;c.height=110;const g=c.getContext('2d');g.fillStyle=col;g.strokeStyle='#2b78b8';g.lineWidth=6;g.beginPath();g.ellipse(100,60,90*s,44*s,0,0,7);g.fill();g.stroke();g.strokeStyle='#fffa';g.lineWidth=4;g.beginPath();g.arc(100-30*s,60-5*s,18*s,3.4,5);g.stroke();g.beginPath();g.arc(100+20*s,60+10*s,12*s,3.4,5);g.stroke();mk(id,'lake',n,c.toDataURL())});
+try{custom=JSON.parse(localStorage.getItem('tr_items')||'[]');custom.forEach(c=>mk(c.id,c.kind,c.name,c.url))}catch(e){custom=[]}
+try{const w=JSON.parse(localStorage.getItem('tr_world')||'null');if(w&&w.pts&&w.pts.length>8){pts=w.pts;placed=(w.placed||[]).filter(o=>items[o.id]&&o.i<pts.length)}}catch(e){}
+function saveItems(){try{localStorage.setItem('tr_items',JSON.stringify(custom))}catch(e){alert('Garage is full - delete a toy first.')}}
+function saveWorld(){try{localStorage.setItem('tr_world',JSON.stringify({pts,placed}))}catch(e){}}
+function add(type){hist.push(pts.length);let p=pts[pts.length-1],{x,y,z,h}=p;
+for(let i=0;i<8;i++){if(type=='L')h-=Math.PI/16;if(type=='R')h+=Math.PI/16;if(type=='U')z+=5;if(type=='D')z-=5;x+=Math.cos(h)*S;y+=Math.sin(h)*S;pts.push({x,y,z,h,k:type=='B'?'b':type=='T'?'t':0})}}
+if(!pts.length){pts=[{x:0,y:0,z:0,h:0}];add('S');hist.length=0}
+const sp=p=>[p.x-cam.x,p.y*Y-p.z-cam.y],pos=o=>{const[a,b]=sp(pts[o.i]);return[a+o.dx,b+o.dy]};
+function rst(){t=0;t2=4}
+function loop(){const n=pts.length,a=pts[0],b=pts[n-1];return n>20&&Math.hypot(a.x-b.x,a.y-b.y)<70&&Math.abs(a.z-b.z)<=25}
+function closeLoop(){const a=pts[0],b=pts[pts.length-1],d=Math.hypot(a.x-b.x,a.y-b.y);if(d<8)return;if(d>500){alert('Bring the road closer to the start first.');return}hist.push(pts.length);const k=Math.max(2,Math.round(d/S)),h=Math.atan2(a.y-b.y,a.x-b.x);for(let i=1;i<k;i++){const f=i/k;pts.push({x:b.x+(a.x-b.x)*f,y:b.y+(a.y-b.y)*f,z:b.z+(a.z-b.z)*f,h})}saveWorld()}
+function adv(tt,k){const n=pts.length,L=loop(),i=L?Math.floor(((tt%n)+n)%n):Math.min(Math.floor(tt),n-2),dz=pts[(i+1)%n].z-pts[i].z;tt+=k*.12*(1-dz/9);if(L){if(tt>=n)tt-=n}else if(tt>=n-1.01)tt=n-1.01;return tt}
+function focus(i){const[a,b]=sp(pts[i]);cam.x+=a-W/2;cam.y+=b-H/2}
+function spr(it,x,y){const im=it.im;if(!im.naturalWidth)return;const h=HT[it.kind],w=Math.min(h*im.naturalWidth/im.naturalHeight,h*2);
+if(it.kind!=='lake'){cx.fillStyle='#0003';cx.beginPath();cx.ellipse(x,y,w/2.4,6,0,0,7);cx.fill()}cx.drawImage(im,x-w/2,y-h,w,h)}
+function carPos(t){const n=pts.length,L=loop();if(L)t=((t%n)+n)%n;const i=Math.min(Math.floor(t),L?n-1:n-2),f=t-i,p=pts[i],q=pts[(i+1)%n];const[a,b]=sp(p),[c,d]=sp(q);return{x:a+(c-a)*f,y:b+(d-b)*f,dx:c-a,dy:d-b,dz:q.z-p.z}}
+function runs(k){const r=[];let c=null;pts.forEach((p,i)=>{if(p.k===k){if(!c){c=[];r.push(c)}c.push(i)}else c=null});return r}
+function draw(){cx.setTransform(1,0,0,1,0,0);
+const g=cx.createLinearGradient(0,0,0,H);g.addColorStop(0,'#cfeeff');g.addColorStop(.3,'#a6dd7e');g.addColorStop(1,'#86c960');cx.fillStyle=g;cx.fillRect(0,0,W,H);
+const P=pts.map(sp);cx.lineCap=cx.lineJoin='round';
+cx.strokeStyle='#5a9a3a';cx.lineWidth=24;pts.forEach((p,i)=>{if(p.z>0){cx.beginPath();cx.moveTo(P[i][0],P[i][1]);cx.lineTo(P[i][0],P[i][1]+p.z);cx.stroke()}});
+placed.forEach(o=>{if(items[o.id].kind==='lake'){const[x,y]=pos(o);spr(items[o.id],x,y)}});const path=()=>{cx.beginPath();P.forEach((a,i)=>i?cx.lineTo(a[0],a[1]):cx.moveTo(a[0],a[1]));if(loop())cx.lineTo(P[0][0],P[0][1])};
+path();cx.strokeStyle='#e8d9a0';cx.lineWidth=42;cx.stroke();
+path();cx.strokeStyle='#4a4a4a';cx.lineWidth=34;cx.stroke();
+path();cx.strokeStyle='#fff';cx.lineWidth=3;cx.setLineDash([10,12]);cx.stroke();cx.setLineDash([]);
+const RP=(r,dy)=>{cx.beginPath();r.forEach((i,j)=>j?cx.lineTo(P[i][0],P[i][1]+dy):cx.moveTo(P[i][0],P[i][1]+dy))};
+const nrm=i=>{const a=P[Math.max(i-1,0)],b=P[Math.min(i+1,P.length-1)],tx=b[0]-a[0],ty=b[1]-a[1],l=Math.hypot(tx,ty)||1;return[-ty/l,tx/l]};
+runs('b').forEach(r=>{if(r.length<2)return;cx.strokeStyle='#6b4423';cx.lineWidth=6;r.forEach((i,j)=>{if(j%2==0){cx.beginPath();cx.moveTo(P[i][0],P[i][1]+10);cx.lineTo(P[i][0],P[i][1]+44);cx.stroke()}});
+cx.lineCap='butt';RP(r,0);cx.strokeStyle='#8b5a2b';cx.lineWidth=46;cx.stroke();RP(r,0);cx.strokeStyle='#555';cx.lineWidth=34;cx.stroke();RP(r,0);cx.strokeStyle='#fff';cx.lineWidth=3;cx.setLineDash([10,12]);cx.stroke();cx.setLineDash([]);
+cx.lineCap='round';cx.strokeStyle='#d9a45b';cx.lineWidth=4;[-1,1].forEach(s=>{cx.beginPath();r.forEach((i,j)=>{const n=nrm(i),x=P[i][0]+n[0]*22*s,y=P[i][1]+n[1]*22*s-5;j?cx.lineTo(x,y):cx.moveTo(x,y)});cx.stroke()})});
+const e=P[P.length-1];cx.font='34px serif';cx.fillText(loop()?'🔁':'🏁',e[0]-8,e[1]-14);
+const L=placed.filter(o=>items[o.id].kind!=='lake').map(o=>{const[x,y]=pos(o);return[y,()=>spr(items[o.id],x,y)]});
+[[veh||'v0',t],[veh2,t2]].forEach(([vid,tt])=>{if(!vid||!items[vid])return;const c=carPos(tt);L.push([c.y+6,()=>{const it=items[vid],im=it.im;if(!im.naturalWidth)return;const h=HT.vehicle,w=Math.min(h*im.naturalWidth/im.naturalHeight,110);
+cx.save();cx.translate(c.x,c.y+6);if(c.dx<0){cx.scale(-1,1);cx.rotate(Math.atan2(c.dy,-c.dx))}else cx.rotate(Math.atan2(c.dy,c.dx));
+cx.drawImage(im,-w/2,-h+4,w,h);cx.restore()}])});
+L.sort((a,b)=>a[0]-b[0]).forEach(a=>a[1]());
+runs('t').forEach(r=>{if(r.length<2)return;cx.lineCap='butt';[[-4,64,'#7d6b4f'],[-12,56,'#9b8863'],[-22,44,'#6fb04a']].forEach(([dy,w,col])=>{RP(r,dy);cx.strokeStyle=col;cx.lineWidth=w;cx.stroke()});
+[r[0],r[r.length-1]].forEach(i=>{const n=nrm(i);cx.fillStyle='#2a2a2a';cx.strokeStyle='#bbb';cx.lineWidth=4;cx.beginPath();cx.ellipse(P[i][0],P[i][1]-6,8,24,Math.atan2(-n[0],n[1]),0,7);cx.fill();cx.stroke()});cx.lineCap='round'})}
+function frame(){if(mode==='drive'&&going){t=adv(t,1);if(veh2)t2=adv(t2,.85);
+if(!loop()&&t>=pts.length-1.02&&(!veh2||t2>=pts.length-1.02)){going=false;ui()}
+const c=carPos(t);cam.x+=(c.x+cam.x-W/2-cam.x)*.12;cam.y+=(c.y+cam.y-H/2-cam.y)*.12}
+draw();requestAnimationFrame(frame)}
+function rs(){const d=Math.min(devicePixelRatio||1,2);W=cv.clientWidth;H=cv.clientHeight;cv.width=W;cv.height=H}
+addEventListener('resize',rs);
+let dn=null;
+cv.onpointerdown=e=>{dn={x:e.clientX,y:e.clientY,cx:cam.x,cy:cam.y,m:false};cv.setPointerCapture(e.pointerId)};
+cv.onpointermove=e=>{if(!dn)return;const dx=e.clientX-dn.x,dy=e.clientY-dn.y;if(Math.abs(dx)+Math.abs(dy)>8)dn.m=true;if(dn.m){cam.x=dn.cx-dx;cam.y=dn.cy-dy}};
+cv.onpointerup=e=>{if(dn&&!dn.m&&mode==='build')tap(e);dn=null};
+function tap(e){const r=cv.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top;
+if(tool==='erase'){let b=-1,bd=3600;placed.forEach((o,k)=>{const[a,c]=pos(o);const d=(a-x)**2+(c-40-y)**2;if(d<bd){bd=d;b=k}});if(b>=0){placed.splice(b,1);saveWorld()}return}
+if(!sel)return;let bi=0,bd=1e12;pts.forEach((p,i)=>{const[a,b]=sp(p);const d=(a-x)**2+(b-y)**2;if(d<bd){bd=d;bi=i}});
+const kk=pts[bi].k,lk=items[sel].kind==='lake',md=kk==='b'&&lk?0:kk==='t'?62:lk?70:30;if(bd<md*md)return;const[a,b]=sp(pts[bi]);placed.push({id:sel,i:bi,dx:x-a,dy:y-b});saveWorld()}
+function ui(){document.querySelectorAll('[data-m]').forEach(b=>b.classList.toggle('on',b.dataset.m===mode));
+const B=(a,l,on)=>`<button data-a="${a}"${on?' class="on"':''}>${l}</button>`;
+$('#ctl').innerHTML=mode==='build'?B('U','⬆️ Hill up')+B('D','⬇️ Hill down')+B('S','➡️ Straight')+B('L','↰ Left')+B('R','↱ Right')+B('B','🌉 Bridge')+B('T','⛰️ Tunnel')+B('close','🔗 Close loop')+B('undo','↩️ Undo')+B('erase','🧽 Erase',tool==='erase'):B('go',going?'⏸ Stop':'▶️ Go!')+B('re','🔄 Restart')+B('s0','1️⃣ Car 1',!slot)+B('s1','2️⃣ Car 2',slot==1)+(veh2?B('x2','✖ Remove car 2'):'')+(slot&&!veh2?'<small>Pick car 2 below</small>':'');
+const ks=mode==='build'?['building','tree','lake']:['vehicle'];
+$('#pal').innerHTML=Object.values(items).filter(i=>ks.includes(i.kind)).map(i=>`<button data-i="${i.id}"${(mode==='build'?sel===i.id&&tool!=='erase':(slot?veh2:veh)===i.id)?' class="on"':''}><img src="${i.url}"></button>`).join('')}
+document.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
+if(b.dataset.m){mode=b.dataset.m;going=false;if(mode==='drive'){rst();focus(0)}else focus(pts.length-1);ui()}
+else if(b.dataset.i){if(mode==='build'){sel=b.dataset.i;tool=null}else if(slot)veh2=b.dataset.i;else veh=b.dataset.i;ui()}
+else if(b.dataset.a){const a=b.dataset.a;
+if('UDSLRBT'.includes(a)&&a.length==1){add(a);focus(pts.length-1);saveWorld();tool=null}
+else if(a==='undo'){const n=hist.length?pts.length-hist.pop():8;if(pts.length-n>=9){pts.length-=n;placed=placed.filter(o=>o.i<pts.length);focus(pts.length-1);saveWorld()}}
+else if(a==='erase')tool=tool==='erase'?null:'erase';
+else if(a==='go'){if(!loop()&&t>=pts.length-1.5)rst();going=!going}
+else if(a==='re'){rst();going=false;focus(0)}else if(a==='s0')slot=0;else if(a==='s1')slot=1;else if(a==='x2'){veh2=null;slot=0}else if(a==='close')closeLoop();
+ui()}});
+/* Garage */
+function garage(){$('#gg').innerHTML=Object.values(items).map(i=>`<button class="g" data-g="${i.id}"><img src="${i.url}">${custom.some(c=>c.id===i.id)?`<button class="x" data-x="${i.id}">✕</button>`:''}</button>`).join('')}
+$('#gar').onclick=()=>{garage();$('#gm').hidden=false};$('#gcl').onclick=()=>$('#gm').hidden=true;
+$('#gg').onclick=e=>{const x=e.target.closest('[data-x]'),g=e.target.closest('[data-g]');
+if(x){e.stopPropagation();const id=x.dataset.x;custom=custom.filter(c=>c.id!==id);delete items[id];placed=placed.filter(o=>o.id!==id);if(veh===id)veh='v0';if(veh2===id)veh2=null;if(sel===id)sel='b0';saveItems();saveWorld();garage();ui()}
+else if(g&&items[g.dataset.g].kind==='vehicle'){if(slot)veh2=g.dataset.g;else veh=g.dataset.g;mode='drive';rst();going=false;focus(0);$('#gm').hidden=true;ui()}};
+/* Photo to cartoon */
+let base=null,bg=null,res=null;
+$('#add').onclick=()=>$('#am').hidden=false;$('#acl').onclick=()=>$('#am').hidden=true;
+['f1','f2'].forEach(id=>$('#'+id).onchange=e=>{const f=e.target.files[0];if(!f)return;const im=new Image();im.onload=()=>{const s=Math.min(1,240/Math.max(im.width,im.height));
+base=document.createElement('canvas');base.width=Math.round(im.width*s);base.height=Math.round(im.height*s);base.getContext('2d').drawImage(im,0,0,base.width,base.height);bg=null;$('#edit').hidden=false;run()};im.src=URL.createObjectURL(f);e.target.value=''});
+function run(){const w=base.width,h=base.height,d=base.getContext('2d').getImageData(0,0,w,h),a=d.data;
+if(!bg){let s=[0,0,0],n=0;[[0,0],[w-6,0],[0,h-6],[w-6,h-6]].forEach(([x0,y0])=>{for(let y=y0;y<y0+6;y++)for(let x=x0;x<x0+6;x++){const i=(y*w+x)*4;s[0]+=a[i];s[1]+=a[i+1];s[2]+=a[i+2];n++}});bg=s.map(v=>v/n)}
+const tol=+$('#tol').value,o=new Uint8ClampedArray(a),seen=new Uint8Array(w*h),st=[];
+for(let x=0;x<w;x++){st.push(x,(h-1)*w+x)}for(let y=0;y<h;y++){st.push(y*w,y*w+w-1)}
+while(st.length){const k=st.pop();if(seen[k])continue;seen[k]=1;const i=k*4;
+if(Math.hypot(a[i]-bg[0],a[i+1]-bg[1],a[i+2]-bg[2])<tol){o[i+3]=0;const x=k%w,y=(k/w)|0;if(x>0)st.push(k-1);if(x<w-1)st.push(k+1);if(y>0)st.push(k-w);if(y<h-1)st.push(k+w)}}
+if($('#car').checked)for(let i=0;i<o.length;i+=4){if(!o[i+3])continue;const m=(o[i]+o[i+1]+o[i+2])/3;for(let c=0;c<3;c++){const v=m+(o[i+c]-m)*1.4;o[i+c]=Math.max(0,Math.min(255,Math.round(v/48)*48))}}
+const c1=document.createElement('canvas');c1.width=w;c1.height=h;c1.getContext('2d').putImageData(new ImageData(o,w,h),0,0);
+const sil=document.createElement('canvas');sil.width=w;sil.height=h;const sg=sil.getContext('2d');sg.drawImage(c1,0,0);sg.globalCompositeOperation='source-in';sg.fillStyle='#222';sg.fillRect(0,0,w,h);
+res=document.createElement('canvas');res.width=w+12;res.height=h+12;const r=res.getContext('2d');
+for(let k=0;k<8;k++)r.drawImage(sil,6+Math.cos(k*Math.PI/4)*3,6+Math.sin(k*Math.PI/4)*3);r.drawImage(c1,6,6);
+const pv=$('#pv');pv.width=res.width;pv.height=res.height;pv.getContext('2d').drawImage(res,0,0)}
+$('#tol').oninput=()=>base&&run();$('#car').onchange=()=>base&&run();
+$('#pv').onclick=e=>{const r=e.target.getBoundingClientRect(),x=Math.round((e.clientX-r.left)*res.width/r.width)-6,y=Math.round((e.clientY-r.top)*res.height/r.height)-6;
+if(x<0||y<0||x>=base.width||y>=base.height)return;const p=base.getContext('2d').getImageData(x,y,1,1).data;bg=[p[0],p[1],p[2]];run()};
+$('#save').onclick=()=>{const d=res.getContext('2d').getImageData(0,0,res.width,res.height),a=d.data;let x0=res.width,y0=res.height,x1=0,y1=0;
+for(let y=0;y<res.height;y++)for(let x=0;x<res.width;x++)if(a[(y*res.width+x)*4+3]>20){x0=Math.min(x0,x);x1=Math.max(x1,x);y0=Math.min(y0,y);y1=Math.max(y1,y)}
+if(x1<=x0||y1<=y0){alert('Nothing left - lower the cut-out strength.');return}
+const o=document.createElement('canvas');o.width=x1-x0+1;o.height=y1-y0+1;o.getContext('2d').drawImage(res,-x0,-y0);
+const kind=$('#kind').value,id='c'+Date.now(),name=$('#nm').value||'My toy';
+custom.push({id,kind,name,url:o.toDataURL('image/png')});mk(id,kind,name,custom[custom.length-1].url);saveItems();
+if(kind==='vehicle'){if(slot)veh2=id;else veh=id;mode='drive';rst();going=false;focus(0)}else{sel=id;tool=null;mode='build'}
+$('#edit').hidden=true;$('#nm').value='';$('#am').hidden=true;ui()};
+rs();focus(pts.length-1);ui();frame();
+</script></body></html>
